@@ -1,0 +1,60 @@
+\documentclass[12pt]{article}
+\usepackage{fourier}
+
+\title{Notes on Elem Stat Learn Ch. 3}
+\begin{document}
+\maketitle
+
+\section{Subset Selection}
+\label{sec:suubset-selection}
+
+Forward/Backward selection approaches, based on measure of model fit
+
+\section{Ridge}
+\label{sec:lasso}
+
+\begin{equation}
+  \label{eq:1}
+\hat{\beta}^{ridge}=argmin_{\beta} \bigg \{\sum_{i=1}^{n}(y_i-\beta_0-\sum_{j=1}^{p}x_{ij}\beta_j)^2+\lambda\sum_{j=1}^p\beta^2_j \bigg \}
+\end{equation}
+
+Key points on Lasso
+
+\begin{itemize}
+\item Standardize all inputs, always
+
+\item ``Ridge regression protects against the potentitally high variance of gradients estimated in the short directions.''
+
+  
+\item Ridge downweights everything
+  
+\end{itemize}
+
+\section{Lasso}
+\label{sec:ridge}
+
+
+\begin{equation}
+  \label{eq:1}  
+  \hat{\beta}^{lasso}=argmin_{\beta} \bigg\{\sum_{i=1}^{n}(y_i-\beta_0-\sum_{j=1}^{p}x_{ij}\beta_j)^2+\lambda\sum_{j=1}^p |\beta_j| \bigg \}
+\end{equation}
+
+
+\begin{itemize}
+\item The lasso does a kind of of continuous subset selection
+\item Effectively the lasso pushes harder toward 0, but for fewer variables
+  
+\end{itemize}
+
+\section{Elastic Net}
+\label{sec:elastic-net}
+
+\begin{equation}
+\lambda \sum_{j=1}^p(\alpha\beta^2_j+(1-\alpha)|B_j|)
+\end{equation}
+
+\begin{itemize}
+\item $\alpha=1$ gives us ridge, $\alpha=0$ gives us lasso, $\lambda$ is the penalty. 
+\end{itemize}
+
+\end{document}
