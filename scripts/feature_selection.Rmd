@@ -13,6 +13,8 @@ library(tidyverse)
 library(tidymodels)
 ```
 
+
+
 ## The Data
 
 ```{r}
@@ -20,6 +22,7 @@ data(ames)
 ```
 
 
+## Feature Engineering
 ```{r}
 ames<-ames%>%
   select(Sale_Price,
@@ -43,12 +46,74 @@ ames_test<-testing(split_data)
 ```
 
 
-```{r}
-summary(lm(log_sale_price~.,data=ames))
+Standard linear model
 
+```{r}
+ames_wf<-workflow()
 ```
 
 
+
+
+```{r}
+lm_fit<-
+  linear_reg()%>%
+  set_engine("lm")%>%
+  set_mode("regression")
+```
+
+```{r}
+ames_wf<-workflow()
+```
+
+```{r}
+ames_wf<-ames_wf%>%
+  add_model(lm_fit)
+```
+
+
+```{r}
+ames_formula<-as.formula("log_sale_price~.")
+```
+
+
+```{r}
+ames_rec<-recipe(ames_formula,ames)%>%
+  update_role(log_sale_price,new_role="outcome")%>%  ## specify dv
+  step_normalize(all_predictors())%>% ## Convert all to Z scores
+  step_naomit(all_predictors()) ## drop missing
+```
+
+
+
+```{r}
+ames_wf<-ames_wf%>%
+  add_recipe(ames_rec)
+```
+
+
+```{r}
+ames_wf<-ames_wf%>%
+  fit(ames_train)
+```
+
+```{r}
+  ames_test<-
+  ames_wf%>%
+  predict(new_data=ames_test)%>%
+  rename(.pred1=.pred)%>%
+  bind_cols(ames_test)
+```
+
+```{r}
+ames_test%>%
+  rmse(truth=log_sale_price,estimate=.pred)
+```
+
+
+## Ridge: alpha =0
+## Lasso: alpha=1
+# https://parsnip.tidymodels.org/reference/glmnet-details.htm
 ```{r}
 penalty_spec<-.1
 
@@ -59,7 +124,6 @@ lasso_fit<-
              mixture=mixture_spec) %>% 
   set_engine("glmnet")%>%
   set_mode("regression")
-  
 ```
 
 ## Define the Workflow
@@ -100,7 +164,7 @@ ames_rec<-recipe(ames_formula,ames)%>%
 ames_processed<-ames_rec%>%prep()%>%bake(ames_train)
 ```
 
-Now we can add our model to the recipe. 
+Now we can add our  recipe to the workflow. 
 
 ```{r}
 ames_wf<-ames_wf%>%
@@ -108,12 +172,24 @@ ames_wf<-ames_wf%>%
 ```
 
 
-
 ```{r}
-ames_lasso_fit<-ames_wf%>%
+ames_wf<-ames_wf%>%
   fit(ames_train)
 ```
 
+
+```{r}
+  ames_test<-
+  ames_wf%>%
+  predict(new_data=ames_test)%>%
+  rename(.pred2=.pred)%>%
+  bind_cols(ames_test)
+```
+
+```{r}
+ames_test%>%
+  rmse(truth=log_sale_price,estimate=.pred2)
+```
 
 
 ```{r}
@@ -123,6 +199,16 @@ ames_lasso_fit%>%
 
 ames_lasso_fit  
 ```
+
+```{r}
+collect_metrics(ames_lasso_fit)
+```
+
+
+```{r}
+summary(lm(log_sale_price~.,data=ames_processed))
+```
+
 
 
 ## Cross Validation
