@@ -1,0 +1,141 @@
+---
+title: "Classification and Regression Trees"
+author: "Will Doyle"
+date: "10/2/2022"
+output: html_document
+---
+
+## Shamelessly cribbed from: https://juliasilge.com/blog/wind-turbine/
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(janitor)
+library(vip)
+```
+
+```{r}
+cars<-read_csv("../data/training_car.csv")%>%
+  clean_names()%>%
+  select(is_bad_buy,
+         veh_year,
+         make,
+         color,
+         transmission,
+         veh_odo,
+         is_online_sale)%>%
+         mutate(is_bad_buy=as_factor(
+           recode(is_bad_buy,
+                           `1`="BadBuy",
+                           `0`="GoodBuy")))
+
+  
+```
+
+
+```{r}
+cars_split<-initial_split(cars)
+
+cars_train<-training(cars_split)
+
+cars_test<-testing(cars_split)
+```
+
+```{r}
+cars_fold<-vfold_cv(cars_train,v = 20)
+```
+
+```{r}
+tree_spec<-decision_tree(
+  cost_complexity = tune(), # alpha, 0= keep everything, 1=drop everything
+  tree_depth = tune(), # How many splits before coming to a decision
+  min_n=tune())%>% # minimum n for each leaf
+  set_engine("rpart")%>%
+  set_mode("classification")
+```
+
+```{r}
+tree_grid<-grid_regular(cost_complexity(),
+                        tree_depth(),
+                        min_n(),
+                        levels=4)
+```
+
+
+```{r}
+tree_formula<-as.formula("is_bad_buy~.")
+```
+
+
+```{r}
+tree_rec<-recipe(tree_formula,cars_train)%>%
+  update_role(is_bad_buy,new_role = "outcome")%>%
+  step_naomit(all_predictors())%>%
+  step_other(all_nominal_predictors(),threshold = .01)%>%
+  step_dummy(all_nominal_predictors())%>%
+  step_normalize(all_numeric_predictors())
+```
+
+```{r}
+tree_rec%>%prep%>%bake(cars_train)
+```
+
+```{r}
+tree_wf<-workflow()%>%
+  add_model(tree_spec)%>%
+  add_recipe(tree_rec)
+```
+
+
+```{r}
+
+doParallel::registerDoParallel()
+
+tree_rs <- tree_wf%>%
+  tune_grid(
+  resamples = cars_fold,
+  grid = tree_grid,
+  metrics = metric_set(sensitivity,specificity,roc_auc)
+)
+
+tree_rs
+```
+
+```{r}
+collect_metrics(tree_rs)%>%
+  filter(.metric=="roc_auc")%>%
+  arrange(-mean)
+
+```
+
+```{r}
+autoplot(tree_rs)
+```
+
+```{r}
+show_best(tree_rs)
+```
+
+```{r}
+final_tree<-finalize_model(tree_spec,select_best(tree_rs, "roc_auc"))
+```
+
+```{r}
+final_rs <- last_fit(final_tree, is_bad_buy ~ ., cars_split)
+```
+
+```{r}
+final_fit <- fit(final_tree, is_bad_buy ~ ., cars_train)
+```
+
+```{r}
+final_fit %>%
+  vip(geom = "col", aesthetics = list(fill = "purple", alpha = 0.8)) +
+  scale_y_continuous(expand = c(0, 0))
+```
+
+
