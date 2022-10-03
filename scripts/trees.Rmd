@@ -102,7 +102,7 @@ tree_rs <- tree_wf%>%
   metrics = metric_set(sensitivity,specificity,roc_auc)
 )
 
-tree_rs
+save(tree_rs,file = "tree_rs.Rdata")
 ```
 
 ```{r}
@@ -117,7 +117,7 @@ autoplot(tree_rs)
 ```
 
 ```{r}
-show_best(tree_rs)
+show_best(tree_rs,metric="roc_auc")
 ```
 
 ```{r}
@@ -125,15 +125,21 @@ final_tree<-finalize_model(tree_spec,select_best(tree_rs, "roc_auc"))
 ```
 
 ```{r}
-final_rs <- last_fit(final_tree, is_bad_buy ~ ., cars_split)
+final_rs <- last_fit(final_tree, tree_rec, cars_split)
 ```
 
 ```{r}
-final_fit <- fit(final_tree, is_bad_buy ~ ., cars_train)
+
+final_wf<-workflow()%>%
+  add_model(final_tree)%>%
+  add_recipe(tree_rec)
+
+final_fit <- final_wf%>%fit(cars_train)
+
 ```
 
 ```{r}
-final_fit %>%
+final_fit %>% extract_fit_parsnip()%>%
   vip(geom = "col", aesthetics = list(fill = "purple", alpha = 0.8)) +
   scale_y_continuous(expand = c(0, 0))
 ```
