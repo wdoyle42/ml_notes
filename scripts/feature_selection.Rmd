@@ -5,7 +5,7 @@ author: "Will Doyle"
 
 ## Introduction
 
-In this last lecture we'll introduce a couple of new concepts: cross validation and feature selection.
+
 
 
 ```{r}
@@ -17,12 +17,16 @@ library(tidymodels)
 
 ## The Data
 
+We'll use the Ames housing data, a dataset of house prices and characteristics for Ames Iowa. We'll try to predict house prices. 
+
 ```{r}
 data(ames)
 ```
 
 
 ## Feature Engineering
+
+Feature engineering is the Machine Learning term for what we would call data wrangling. Some of this can be done programatically, other parts more "by hand." The code below will select lot area, year built, rooms above ground, and ever variable that ends with "SF" which stands for square feet. It also logs sale price-- the dependent variable. 
 ```{r}
 ames<-ames%>%
   select(Sale_Price,
@@ -34,8 +38,9 @@ ames<-ames%>%
   select(-Sale_Price)
 ```
 
+## Training and Testing
 
-As usual, we'll split the data 75/25. 
+We'll split the data into training and testing, using the default 75/25 split. 
 
 ```{r}
 split_data<-initial_split(ames)
@@ -45,15 +50,21 @@ ames_train<-training(split_data)
 ames_test<-testing(split_data)
 ```
 
+## OLS 
 
-Standard linear model
+For the baseline example let's run OLS on the data
+
+### Set workflow
+
+`Tidymodels` relies on the idea of a modeling workflow. Let's start by defining an empty one. 
 
 ```{r}
 ames_wf<-workflow()
 ```
 
 
-
+### Model statement
+Next we'll define a simple linear model via `lm`. 
 
 ```{r}
 lm_fit<-
@@ -62,20 +73,24 @@ lm_fit<-
   set_mode("regression")
 ```
 
-```{r}
-ames_wf<-workflow()
-```
 
+Then we can add the model to the workflow. 
 ```{r}
 ames_wf<-ames_wf%>%
   add_model(lm_fit)
 ```
 
+### Recipe
+
+A recipe in tidymodels is the set of steps that need to be done to the data prior to analysis. The wonderful think about the recipe approach is that it works exactly the same on training and testing or resampled data. 
+
+First we'll set a formula-- the one below says to create a model with log sale price on the LHS and everything else in the dataset on the RHS. 
 
 ```{r}
 ames_formula<-as.formula("log_sale_price~.")
 ```
 
+With that formula, we can then define the recipe. The recipe are the remaining feature engineering steps that need to occur. In this case we're going to define the dependent variable via `update_role`, then normalize the data via `step_normalize` then drop all missing data via `step_naomit.`
 
 ```{r}
 ames_rec<-recipe(ames_formula,ames)%>%
@@ -85,17 +100,25 @@ ames_rec<-recipe(ames_formula,ames)%>%
 ```
 
 
+Now we can add the recipe to the workflow.
 
 ```{r}
 ames_wf<-ames_wf%>%
   add_recipe(ames_rec)
 ```
 
+## Fit the model to the training data
+
+Quite easily done via `fit`
 
 ```{r}
 ames_wf<-ames_wf%>%
   fit(ames_train)
 ```
+
+## Predict results in the testing data
+
+Now we can use the estimates in the fitted model  to predict outcomes in the testing dataset. These will be called `.pred` until we rename them as `.pred1`, and add them to the dataset.  
 
 ```{r}
   ames_test<-
@@ -105,15 +128,25 @@ ames_wf<-ames_wf%>%
   bind_cols(ames_test)
 ```
 
+## Calculate RMSE
+
+Next we can use the `rmse` command to compare the actual log sale price in the dataset to the predicted log price. 
+
 ```{r}
 ames_test%>%
-  rmse(truth=log_sale_price,estimate=.pred)
+  rmse(truth=log_sale_price,estimate=.pred1)
 ```
 
 
-## Ridge: alpha =0
-## Lasso: alpha=1
-# https://parsnip.tidymodels.org/reference/glmnet-details.htm
+## Lasso model
+
+
+## Lasso for Feature Selection
+
+One of the key decisions for an analyst is which variables to include. We can make decisions about this using theory, or our understanding of the context, but we can also rely on computational approaches. This is known as *regularization* and it involves downweighting the importance of coefficients from a model based on the contribution that a predictor makes. We're going to make use of a regularization penalty known as the "lasso." The lasso downweights variables mostly be dropping variables that are highly correlated with one another, leaving only one of the correlated variables as contributors to the model. We set the degree to which this penalty will be implemented by setting the "penalty" variable in the model specification. 
+
+
+Now we can update the model to use lasso, which will subset on a smaller number of covariates. In the `tidymodels` setup, ridge is alpha (mixture)=0, while lasso is alpha (mixture)=1.   https://parsnip.tidymodels.org/reference/glmnet-details.htm
 ```{r}
 penalty_spec<-.1
 
@@ -159,17 +192,20 @@ ames_rec<-recipe(ames_formula,ames)%>%
   step_naomit(all_predictors()) ## drop missing
 ```
 
+To look at what a prepped dataset would look like, we can use the `prep`--> then `bake` commands. 
 
 ```{r}
 ames_processed<-ames_rec%>%prep()%>%bake(ames_train)
 ```
 
-Now we can add our  recipe to the workflow. 
+Now we can add our recipe to the workflow. 
 
 ```{r}
 ames_wf<-ames_wf%>%
   add_recipe(ames_rec)
 ```
+
+Aad fit the data
 
 
 ```{r}
@@ -177,6 +213,7 @@ ames_wf<-ames_wf%>%
   fit(ames_train)
 ```
 
+We can use the same set of commands as above to generate as prediction, which will be pred2 this time.
 
 ```{r}
   ames_test<-
@@ -186,27 +223,19 @@ ames_wf<-ames_wf%>%
   bind_cols(ames_test)
 ```
 
+We can then check the rmse from our model. 
 ```{r}
 ames_test%>%
   rmse(truth=log_sale_price,estimate=.pred2)
 ```
 
-
+We can also look at the coefficients to get a sense of what got included and what got dropped. 
 ```{r}
 ames_lasso_fit%>%
   extract_fit_parsnip()%>%
   tidy()
 
 ames_lasso_fit  
-```
-
-```{r}
-collect_metrics(ames_lasso_fit)
-```
-
-
-```{r}
-summary(lm(log_sale_price~.,data=ames_processed))
 ```
 
 
@@ -232,126 +261,33 @@ We're going to cut our training dataset 75/25, and we'll repeat that 25 times. T
 
 ## Monte Carlo Resampling
 
+The code below will generate a resampled dataset using monte carlo resampling. 
+
 ```{r}
-mv_rs<-mc_cv(mv_train,times=25) ## More like 1000 in practice
+ames_rs<-mc_cv(ames_train,times=25) ## More like 1000 in practice
 ```
 
-## Lasso for Feature Selection
 
-One of the key decisions for an analyst is which variables to include. We can make decisions about this using theory, or our understanding of the context, but we can also rely on computational approaches. This is known as *regularization* and it involves downweighting the importance of coefficients from a model based on the contribution that a predictor makes. We're going to make use of a regularization penalty known as the "lasso." The lasso downweights variables mostly be dropping variables that are highly correlated with one another, leaving only one of the correlated variables as contributors to the model. We set the degree to which this penalty will be implemented by setting the "penalty" variable in the model specification. 
-
-
+We can then fit the model to the resampled data via `fit_resamples`.
 ```{r}
-penalty_spec<-.1
-
-mixture_spec<-1
-
-lasso_fit<- 
-  linear_reg(penalty=penalty_spec,
-             mixture=mixture_spec) %>% 
-  set_engine("glmnet")%>%
-  set_mode("regression")
-  
+ames_lasso_fit<-ames_wf%>%
+  fit_resamples(ames_rs)
 ```
 
-## Define the Workflow
-
+The model has now been fit to 25 versions of the training data. Let's look ath metrics using `collect_metrics`.
 ```{r}
-movie_wf<-workflow()
+ames_lasso_fit%>%collect_metrics()
 ```
 
-## Add the Model
 
+We can also pull certain metrics like rmse one at a time if we want.
 ```{r}
-movie_wf<-movie_wf%>%
-  add_model(lasso_fit)
-```
-
-## Set Formula
-
-In setting the recipe for this model, we're now going to include ever variable in the dataset. This is very common in these kinds of applications. 
-
-```{r}
-movie_formula<-as.formula("log_gross~.")
-```
-
-## Recipe
-
-Because we have so many predictors, we need to generalize our process for feature engineering. Instead of running steps on particular variables, we're going to use the capabilities of tidymodels to select types of variables. 
-
-
-```{r}
-movie_rec<-recipe(movie_formula,mv)%>%
-  update_role(title,new_role="id variable")%>%
-  update_role(log_gross,new_role="outcome")%>%  ## specify dv
-  step_log(budget)%>% 
-  step_other(all_nominal_predictors(),threshold = .01)%>%
-  step_dummy(all_nominal_predictors())%>%
-  step_normalize(all_predictors())%>% ## Convert all to Z scores
-  step_naomit(all_predictors()) ## drop missing
-```
-
-To see what this does, we can use the `prep` and `bake` commands
-
-```{r}
-mv_processed<-movie_rec%>%prep()%>%bake(mv_train)
-```
-
-Now we can add our model to the recipe. 
-
-```{r}
-movie_wf<-movie_wf%>%
-  add_recipe(movie_rec)
-```
-
-## Fit resamples
-
-To fit a model to resampled data, we use `fit_resamples.` It's now going to fit the model to the training data and then test the model against the testing data for all 25 of our resampled datasets. 
-
-```{r}
-movie_lasso_fit<-movie_wf%>%
-  fit_resamples(mv_rs)
-```
-
-## Examine resamples and fit
-
-Once we run this model, we get a measure of model fit from every testing dataset. `collect_metrics` will let us see the average. 
-
-```{r}
-movie_lasso_fit%>%
-  collect_metrics()
-```
-
-## CV results
-```{r}
-movie_lasso_fit%>%
+ames_lasso_fit%>%
   unnest(.metrics)%>%
   filter(.metric=="rmse")%>%
   ggplot(aes(x=.estimate))+
   geom_density()
-```
 
-## Finalize Workflow
-```{r}
-movie_lasso_final <- finalize_workflow(movie_wf,
-                                      select_best(movie_lasso_fit,metric="rmse")) %>%
-  fit(mv_test)
-```
-
-## Parameter Estimates
-```{r}
-movie_lasso_final%>%
-  extract_fit_parsnip()%>%
-  tidy()%>%
-  kable()
-```
-
-
-## Prediction in the testing dataset
-
-```{r}
-movie_lasso_final%>%last_fit(split_data)%>%
-  collect_metrics()
 ```
 
 
@@ -363,32 +299,34 @@ process has the impressive name of "hyperparameter tuning" but it could just as 
 
 Below I'm going to give the argument `tune()` for the value of penalty. This will allow us to "fill in" values later. 
 
+
+Of course we don't know what penalty to use in the lasso model, so we can tune it. This is set up
+by using the `penalty=tune()` approach below. 
+
 ```{r}
-lasso_tune_fit<- 
+ames_tune_fit<- 
   linear_reg(penalty=tune(),mixture=mixture_spec)%>% 
   set_engine("glmnet")
 ```
 
+Now that we've said which parameter to tune, we'll use the `grid_regular` command to get a set of nicely spaced out values. This command is specific to the parameter, so it will choose reasonable values for a penalty. 
 
-##  Update Workflow
 ```{r}
-movie_wf<-movie_wf%>%
-  update_model(lasso_tune_fit)
+lasso_grid<-grid_regular(parameters(ames_tune_fit) ,levels=10)
 ```
 
-## Create Grid for Model Tuning
 
-A tuning grid is a set of numbers we might want to use. I use the function `grid_regular` and ask it to give me 10 possible values of the penalty. 
-
+We can use `update_model` to change our workflow with the new model. 
 ```{r}
-lasso_grid<-grid_regular(parameters(lasso_tune_fit) ,levels=10)
+ames_wf<-ames_wf%>%
+  update_model(ames_tune_fit)
 ```
 
-## Fit Using the Grid
+Then we can use `tune_grid` to run the model through the resampled data, using the grid supplied. 
 ```{r}
-movie_lasso_tune_fit <- 
-  movie_wf %>%
-    tune_grid(mv_rs,grid=lasso_grid)
+ames_lasso_tune_fit <- 
+  ames_wf %>%
+    tune_grid(ames_rs,grid=lasso_grid)
 ```
 
 ## Examine Results
@@ -396,131 +334,10 @@ movie_lasso_tune_fit <-
 Lets' take a look and see which models fit better. 
 
 ```{r}
-movie_lasso_tune_fit%>%
+ames_lasso_tune_fit%>%
   collect_metrics()%>%
   filter(.metric=="rmse")%>%
   arrange(mean)
 ```
 
-It looks like using a very small penalty (like basically none) is the way to go. 
 
-## Plot Results
-
-Let's confirm what we learned by plotting the results. 
-
-```{r}
-movie_lasso_tune_fit%>%
-unnest(.metrics)%>%
-  filter(.metric=="rmse")%>%
-  mutate(tune_id=paste0("penalty=",prettyNum(penalty,digits=4))) %>%
-  select(tune_id,.estimate)%>%
-  rename(RMSE=.estimate)%>%
-  ggplot(aes(x=RMSE,color=tune_id,fill=tune_id))+
-  geom_density(alpha=.1)
-```
-
-What this is telling us is that big penalty values are a really bad idea, and that most of the lower penalty values fit the data just fine. 
-
-## Choose best model and fit to training data
-
-We can choose the best model and then fit it to our training dataset. 
-```{r}
-movie_final<-
-  finalize_workflow(movie_wf,
-                    select_best(movie_lasso_tune_fit,
-                                metric="rmse"))%>%
-  fit(mv_train)
-```
-
-## Examine Parameter Estimates
-
-```{r}
-movie_final%>%
-  extract_fit_parsnip()%>%
-  tidy()%>%
-  mutate(penalty=prettyNum(penalty,digits=4))%>%
-  kable()
-```
-
-This is almost identical to what we would have gotten had we just used OLS, but we know now for certain!
-
-## Make Prediction
-
-```{r}
-pred_df<-movie_final%>%
-  predict(mv_test)%>%
-  rename(`Predicted Gross`=.pred)%>%
-  bind_cols(mv_test)%>%
-  rename(`Actual Gross`=log_gross)
-```
-
-```{r}
-rmse_final<-yardstick::rmse(pred_df,truth = `Actual Gross`,estimate = `Predicted Gross`)
-
-rmse_final
-```
-
-
-```{r}
-gg<-pred_df%>%
-  ggplot(aes(y=`Actual Gross`,x=`Predicted Gross`,text=paste(title,"<br>",
-                                                             `Actual Gross`,
-                                                             `Predicted Gross`)))+
-  geom_point(alpha=.25,size=.5)+
-  scale_x_continuous(trans="log",labels=label_dollar())+
-  scale_y_continuous(trans="log",labels=label_dollar()) 
-  
-
-ggplotly(gg,tooltip="text")
-
-```
-
-Or Just
-```{r}
-movie_final%>%last_fit(split_data)%>%
-  collect_metrics()
-```
-
-
-## Choose best model and fit to full data
-
-Once we're sure that we at our very last model, we can get estimates from the full dataset. 
-
-```{r}
-movie_final<-
-  finalize_workflow(movie_wf,
-                    select_best(movie_lasso_tune_fit,
-                                metric="rmse"))%>%
-  fit(mv) ## FULL dataset
-```
-
-```{r}
-movie_final%>%
-  pull_workflow_fit()%>%
-  tidy()%>%
-  mutate(penalty=prettyNum(penalty))%>%
-  kable()
-```
-
-This is what we would use for any incoming data.Let's say the proposal is to make either a horror 
-or adventure movie for 10 million. We've also been pitched movies that will be rated R-- which of course better reflects the director's "artistic vision" and movies that will be rated PG-13. Let's see what our model says about these. 
-
-```{r}
-newdata<-data_grid(mv,
-          title="Data Science 3: The Tuning",         
-          budget=1e7,
-          rating=c("R","PG-13"),
-          genre=c("Horror","Adventure"),
-          runtime=100,
-          year=as_factor(2020))
-
-movie_final%>%
-  predict(newdata)%>%
-  bind_cols(newdata)%>%
-  mutate(low_dollar_amount=dollar(exp(.pred-rmse_final$.estimate)))%>%
-  mutate(mean_dollar_amount=dollar(exp(.pred)))%>%
-  mutate(hi_dollar_amount=dollar(exp(.pred+rmse_final$.estimate)))
-  
-```
-
-What should we recommend as a result?
