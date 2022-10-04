@@ -18,6 +18,9 @@ library(janitor)
 library(vip)
 ```
 
+## Kaggle Competition: Carvana
+https://www.kaggle.com/c/DontGetKicked
+
 ```{r}
 cars<-read_csv("../data/training_car.csv")%>%
   clean_names()%>%
