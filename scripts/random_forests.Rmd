@@ -1,0 +1,178 @@
+---
+title: "Random Forests"
+author: "Will Doyle"
+date: "10/17/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(janitor)
+library(vip)
+```
+
+## Kaggle Competition: Carvana
+https://www.kaggle.com/c/DontGetKicked
+
+```{r}
+cars<-read_csv("../data/training_car.csv")%>%
+  clean_names()%>%
+  select(is_bad_buy,
+         veh_year,
+         make,
+         color,
+         transmission,
+         veh_odo,
+         is_online_sale)%>%
+         mutate(is_bad_buy=as_factor(
+           recode(is_bad_buy,
+                           `1`="BadBuy",
+                           `0`="GoodBuy")))
+
+  
+```
+
+## Split Train and Test
+
+```{r}
+cars_split<-initial_split(cars)
+
+cars_train<-training(cars_split)
+
+cars_test<-testing(cars_split)
+```
+
+
+## Set up for resampling (necessary?)
+
+```{r}
+cars_fold<-vfold_cv(cars_train,v = 10)
+```
+
+## Formula and Recipe, same as last time
+
+```{r}
+tree_formula<-as.formula("is_bad_buy~.")
+```
+
+
+```{r}
+cars_rec<-recipe(tree_formula,cars_train)%>%
+  update_role(is_bad_buy,new_role = "outcome")%>%
+  step_naomit(all_predictors())%>%
+  step_other(all_nominal_predictors(),threshold = .01)%>%
+  step_dummy(all_nominal_predictors())
+```
+
+
+## Random Forest Specification
+
+Tuneable parameters
+
+Number of trees (rarely tuned)
+Number of variables
+Minimum N per node
+
+```{r}
+tune_spec <- rand_forest(
+  mtry = tune(),
+  trees = 100, # Generally more like 1000
+  min_n = tune()
+) %>%
+  set_mode("classification") %>%
+  set_engine("ranger")
+```
+
+## Specify Workflow
+
+```{r}
+cars_wf <- workflow() %>%
+  add_recipe(cars_rec) %>%
+  add_model(tune_spec)
+```
+
+## Set Grid
+
+```{r}
+cars_grid <- grid_regular(
+  mtry(range = c(18, 20)), ## Should be wideer range
+  min_n(range = c(6, 8)), ## Should be wider range
+  levels = 5
+)
+```
+
+
+## Fit Model
+
+```{r}
+doParallel::registerDoParallel()
+
+set.seed(4242)
+tune_res <- tune_grid(
+  cars_wf,
+  grid=cars_grid,
+  resamples = cars_fold
+)
+```
+
+```{r}
+save(tune_res,file="tune_res.Rdata")
+```
+
+```{r}
+load("tune_res.Rdata")
+```
+
+
+## Check Model Fit
+
+```{r}
+tune_res %>%
+  collect_metrics() %>%
+  filter(.metric == "roc_auc") %>%
+  select(mean, min_n, mtry) %>%
+  pivot_longer(min_n:mtry,
+    values_to = "value",
+    names_to = "parameter"
+  ) %>%
+  ggplot(aes(value, mean, color = parameter)) +
+  geom_point(show.legend = FALSE) +
+  facet_wrap(~parameter, scales = "free_x") +
+  labs(x = NULL, y = "AUC")
+```
+
+
+## Finalize
+
+```{r}
+best_auc <- select_best(tune_res, "roc_auc")
+
+final_rf <- finalize_model(
+  tune_spec,
+  best_auc
+)
+
+final_rf
+```
+
+
+## Fit Best Model To Data, Check Against Testing
+
+```{r}
+final_wf <- workflow() %>%
+  add_recipe(cars_rec) %>%
+  add_model(final_rf)
+
+final_res <- final_wf %>%
+  last_fit(cars_split)
+
+final_res %>%
+  collect_metrics()
+```
+

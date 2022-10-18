@@ -56,7 +56,7 @@ cars_fold<-vfold_cv(cars_train,v = 20)
 tree_spec<-decision_tree(
   cost_complexity = tune(), # alpha, 0= keep everything, 1=drop everything
   tree_depth = tune(), # How many splits before coming to a decision
-  min_n=tune())%>% # minimum n for each leaf
+  min_n=tune())%>% # minimum n for each node
   set_engine("rpart")%>%
   set_mode("classification")
 ```
@@ -79,8 +79,7 @@ tree_rec<-recipe(tree_formula,cars_train)%>%
   update_role(is_bad_buy,new_role = "outcome")%>%
   step_naomit(all_predictors())%>%
   step_other(all_nominal_predictors(),threshold = .01)%>%
-  step_dummy(all_nominal_predictors())%>%
-  step_normalize(all_numeric_predictors())
+  step_dummy(all_nominal_predictors())
 ```
 
 ```{r}
@@ -106,6 +105,7 @@ tree_rs <- tree_wf%>%
 )
 
 save(tree_rs,file = "tree_rs.Rdata")
+load("tree_rs.Rdata")
 ```
 
 ```{r}

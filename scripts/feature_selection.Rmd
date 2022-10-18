@@ -385,6 +385,8 @@ ames_lasso_tune_fit%>%
   arrange(mean)%>%
   print(n=100)
 
+
+ames_lasso_tune_fit%>%show_best()
 ames_lasso_tune_fit%>%select_best()
 ```
 
