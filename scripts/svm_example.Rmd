@@ -1,0 +1,156 @@
+---
+title: "SVM Example"
+author: "Will Doyle"
+date: "11/15/2022"
+output: html_document
+---
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(finetune)
+library(janitor)
+```
+
+## Read in Data
+```{r}
+cars<-read_csv("../data/training_car.csv")%>%
+  clean_names()%>%
+  select(is_bad_buy,
+         veh_year,
+         make,
+         color,
+         transmission,
+         veh_odo,
+         is_online_sale)%>%
+         mutate(is_bad_buy=as_factor(
+           recode(is_bad_buy,
+                           `1`="BadBuy",
+                           `0`="GoodBuy")))
+
+cars<-cars%>%sample_n(1000)  
+```
+
+## Split Train and Test
+
+```{r}
+cars_split<-initial_split(cars)
+
+cars_train<-training(cars_split)
+
+cars_test<-testing(cars_split)
+```
+
+
+
+## Set up for resampling 
+
+The following code sets up for monte carlo resampling, with 100 reps
+
+```{r}
+cars_rs<-mc_cv(cars_train)
+```
+
+## Set Formula
+```{r}
+car_formula<-as.formula("is_bad_buy~.")
+```
+
+## Set recipe
+```{r}
+cars_rec<-recipe(car_formula,cars_train)%>%
+  update_role(is_bad_buy,new_role = "outcome")%>%
+  step_naomit(all_predictors())%>%
+  step_other(all_nominal_predictors(),threshold = .05)%>%
+  step_dummy(all_nominal_predictors())%>%
+  step_normalize(all_predictors())
+```
+
+## SVM Specifications
+
+Below, I set up two svm specifications, one with a polynomial kernal (svm_poly) and one with a radial basis function kernel (rbf). 
+
+```{r}
+## Polynomial kernel
+svm_poly_spec <-
+  svm_poly(degree = tune(),scale_factor=tune(),cost=tune()) %>%
+  set_mode("classification") %>%
+  set_engine("kernlab")
+
+## Radial basis function kernel
+svm_rbf_spec <-
+  svm_rbf(rbf_sigma = tune(),cost=tune())%>%
+  set_mode("classification") %>%
+  set_engine("kernlab")
+```
+
+
+## Set workflows
+```{r}
+poly_wf<-workflow()%>%
+  add_model(svm_poly_spec)%>%
+  add_recipe(cars_rec)
+```
+
+```{r}
+rbf_wf<-workflow()%>%
+  add_model(svm_rbf_spec)%>%
+  add_recipe(cars_rec)
+```
+
+## Simulated Annealing
+
+Below, I use a different process for tuning-- simulated annealing. Instead of specifying the full grid, I'm allowing the tuning algorithm to walk through a random space in order to find the best possible combination of tuning parameters. 
+
+https://www.youtube.com/watch?v=qEeF-ErtUAU&t=99s
+
+```{r}
+set.seed(123)
+doParallel::registerDoParallel()
+
+cars_poly_results <-
+  poly_wf%>%
+  tune_sim_anneal(
+    resamples=cars_rs,
+    iter=50
+  )
+```
+
+
+Same thing, with radial basis function kernel. 
+```{r}
+set.seed(123)
+doParallel::registerDoParallel()
+
+cars_rbf_results <-
+    rbf_wf%>%
+  tune_sim_anneal(
+    resamples=cars_rs,
+    iter=50
+  )
+```
+
+
+Here's the results for polynomial kernel.
+```{r}
+cars_poly_results%>%
+  collect_metrics()%>%
+  filter(.metric=="roc_auc")%>%
+  arrange(-mean)
+```
+
+And for the radial basis function kernel.
+```{r}
+cars_rbf_results%>%
+  collect_metrics()%>%
+  filter(.metric=="roc_auc")%>%
+  arrange(-mean)
+```
+
+We can also take a look via `show_best`
+```{r}
+show_best(cars_rbf_results,n = 20,metric="roc_auc")
+```
+
+
+
+

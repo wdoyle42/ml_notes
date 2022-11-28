@@ -35,7 +35,7 @@ cars<-read_csv("../data/training_car.csv")%>%
                            `1`="BadBuy",
                            `0`="GoodBuy")))
 
-  
+cars<-cars%>%sample_n(1000)  
 ```
 
 ## Split Train and Test
@@ -66,7 +66,7 @@ tree_formula<-as.formula("is_bad_buy~.")
 cars_rec<-recipe(tree_formula,cars_train)%>%
   update_role(is_bad_buy,new_role = "outcome")%>%
   step_naomit(all_predictors())%>%
-  step_other(all_nominal_predictors(),threshold = .01)%>%
+  step_other(all_nominal_predictors(),threshold = .05)%>%
   step_dummy(all_nominal_predictors())
 ```
 
@@ -101,8 +101,8 @@ cars_wf <- workflow() %>%
 
 ```{r}
 cars_grid <- grid_regular(
-  mtry(range = c(18, 20)), ## Should be wideer range
-  min_n(range = c(6, 8)), ## Should be wider range
+  mtry(range = c(18, 20)), ## Should be wider range
+  min_n(range = c(15, 17)), ## Should be wider range
   levels = 5
 )
 ```
@@ -174,5 +174,19 @@ final_res <- final_wf %>%
 
 final_res %>%
   collect_metrics()
+```
+
+```{r}
+cars_prep<-cars_rec%>%prep()
+```
+
+
+```{r}
+final_rf %>%
+  set_engine("ranger", importance = "permutation") %>%
+  fit(is_bad_buy ~ .,
+    data = juice(cars_prep) 
+  ) %>%
+  vip(geom = "point")
 ```
 
