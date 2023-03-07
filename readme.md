@@ -32,3 +32,17 @@ https://www.tmwr.org/
 ### 6 15-Nov Neural Networks 11
 
 ### 7 29-Nov Ensemble Methods 16
+
+## Spring 2023
+
+### Connection between neural nets and mle models-- focus on multinomial logit
+
+### Backpropagation
+
+### Activation functions
+
+### Measuring Model fit via cross entropy
+
+### Cross validation and choosing hyperparameters
+
+### Application
