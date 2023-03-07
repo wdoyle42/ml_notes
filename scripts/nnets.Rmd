@@ -23,6 +23,10 @@ library(imager)
 
 ## Data 
 
+The data for this example come from the Elements of Statistical Learning book, and are considered kind of a classic dataset for practicing. It's based on collected handwriting data for the digits 0-9, and was a key dataset used for image recognition for handwritten zip codes in US mail, hence "zip". 
+
+The data is supplied separately as training and testing, I'm going to make the outcome a factor, add a grouping variable to each, and then structure the data as split data using the group_initial_split command. 
+
 ```{r}
 zip_train<-read_table("../data/zip.train",col_names = FALSE)%>%clean_names()%>%select(-x258)%>%
   mutate(label=as_factor(x1))%>%
@@ -36,26 +40,30 @@ zip_test<-read_table("../data/zip.test",col_names = FALSE)%>%clean_names()%>%
 
 zip_complete<-bind_rows(zip_train,zip_test)
 
-split_data<-zip_complete%>%group_initial_split(split)
+split_data<-zip_complete%>%initial_split()
 
 zip_train<-training(split_data)
 
 zip_test<-testing(split_data)
-
 ```
 
+## Viewing the data
+
+Just to get a sense of this data, let's take a look at some of the data, using the as.cimg command.  
 
 ```{r}
 display_image <- function(data){
   message("Displaying: ", data$y)
   
   data %>% 
-    select(-label) %>% 
+    select(-label,-split) %>% 
     unlist(use.names = FALSE) %>% 
     as.cimg(x = 16, y = 16) %>% 
     plot(axes = FALSE)
 }
 ```
+
+Some of these are not exactly what we might expect . . .
 
 ```{r}
 zip_train %>% 
@@ -63,17 +71,24 @@ zip_train %>%
   display_image()
 ```
 
+So, we habve 256 inputs (16x16) and 10 outputs (digits 0-9), we want to know for each level of darkness/lightness for each pixel, how that value might affect the probability of a given outcome. 
 
 
+## Formula and Recipe
 ```{r}
 zip_formula<-as.formula("label~.")
 ```
 
+We do need to normalize all of the predictors for this method. 
 ```{r}
 zip_recipe<-recipe(zip_formula,zip_train)%>%
+  update_role(split,new_role="id variable")%>%
   step_normalize(all_predictors())
 ```
 
+## Multinomial Logit
+
+We can run multinomial logit for this problem, but it won't do very well. 
 ```{r}
 mlogit_mod<-multinom_reg(mode="classification",
                          engine="glmnet",penalty = 0
@@ -81,26 +96,126 @@ mlogit_mod<-multinom_reg(mode="classification",
 ```
 
 
-
+### Create Workflow
 ```{r}
 mlogit_wf<-workflow()%>%
   add_model(mlogit_mod)%>%
   add_recipe(zip_recipe)
 ```
 
+### Fit multinomial logit to training data
 ```{r}
-mlogit_result<-mlogit_wf%>%fit(zip_train)
+mlogit_fit<-mlogit_wf%>%fit(zip_train)
 ```
 
+### Use coefficients to generate predictions in the testing dataset
 ```{r}
-mlogit_result%>%
-  predict(new_data = zip_test,type = "prob")%>%
-  bind_cols(zip_test)%>%
-  mn_log_loss(truth=label,contains("pred"))
+
+# `last_fit()` for fit on training, predict on test, and report performance
+ml_lf <- last_fit(mlogit_fit, split_data)
+ml_lf%>%collect_metrics()
 ```
 
+## Neural Nets
+
+We'll fit a model using Torch. The interface for Torch with R is called brulee (get it?).
+
+Torch is a deep learning framework that is built on top of the Lua programming language. It provides a set of tools and libraries for building and training neural networks, including a powerful tensor library for efficient numerical computation.
+
+At its core, Torch represents neural networks as computational graphs, which are graphs of mathematical operations that are used to transform input data into output predictions. Each node in the graph represents an operation that takes input data and produces output data. These operations can include linear transformations, non-linear activations, pooling, and other common neural network operations.
+
+In Torch, neural networks are defined using a high-level scripting language called LuaJIT. This language allows users to define the structure of their neural networks, as well as the specific operations that are performed at each node in the graph. The LuaJIT code is then compiled into an efficient C implementation that can be run on a CPU or GPU.
+
+Torch also provides a set of pre-built neural network modules, such as convolutional layers, recurrent layers, and fully connected layers, that can be combined to create more complex networks. These pre-built modules are designed to be highly optimized for performance, and can be easily combined and customized to suit a wide range of applications.
+
+The neural network has the following hyperparameters:
+
+
+### Hidden Units
+
+In a neural network model, a hidden unit is a node that performs a mathematical operation on the inputs and produces an output. These hidden units are typically arranged in layers, with each layer taking the outputs of the previous layer as inputs.
+
+The term "hidden" refers to the fact that the inputs and outputs of the hidden units are not directly observable. Instead, they are internal to the neural network and are used to compute the final output of the network.
+
+The number of hidden units in a neural network model is typically determined by trial and error, as well as by the complexity of the problem being solved. More complex problems may require more hidden units, while simpler problems may require fewer.
+
+One way to think about hidden units is as a sort of "feature detector." Each hidden unit can be thought of as looking for a particular pattern in the inputs. For example, in an image recognition problem, one hidden unit might be looking for straight lines, while another might be looking for curved shapes.
+
+By combining the outputs of many different hidden units, the neural network as a whole can learn to recognize more complex patterns in the inputs, leading to more accurate predictions.
+
+In this interface, the number of hidden units can be an integer for the number of hidden units, or a vector of integers. If a vector of integers, the model will have the same number of layers as the number of elements in the vector, while each layer will have a number of hidden units equal to the number in the vector. A vecotr of (5,3,1) will have three layers, with 5,3 and 1 hidden units. 
+
+### Epochs
+
+In a neural network model, an epoch is a single pass through the entire training dataset. During an epoch, the neural network processes all of the training examples, updates its internal parameters (also known as weights and biases), and adjusts its predictions based on the errors it has made.
+
+The number of epochs is typically set as a hyperparameter and is determined by the complexity of the problem being solved and the amount of data available for training. Generally, more epochs are needed for more complex problems or when the dataset is large.
+
+During each epoch, the neural network learns from the training examples and adjusts its parameters to improve its accuracy on the training data. However, it is important to monitor the performance of the neural network on a validation set, which is a separate dataset used to evaluate the model's generalization performance. This can help to prevent overfitting, which occurs when the neural network becomes too specialized to the training data and does not perform well on new data.
+
+In practice, the training process often involves multiple epochs. After each epoch, the model's performance on the validation set is evaluated, and if it does not improve or starts to degrade, training may be stopped or additional techniques such as early stopping or regularization may be employed to improve the model's performance.
+
+### Regularization/Penalty
+
+In a neural net, tegularization or penalty is a technique used in neural networks to prevent overfitting, which occurs when the model becomes too complex and starts to fit the training data too closely, resulting in poor performance on new, unseen data.
+
+The idea behind regularization is to add a penalty term to the objective function that the neural network is optimizing during training. This penalty term encourages the neural network to learn simpler models by penalizing complex models. This can help to prevent overfitting and improve the generalization performance of the model.
+
+There are several different types of regularization techniques that can be used in neural networks, including:
+
+L1 Regularization: This technique adds a penalty term to the objective function that is proportional to the sum of the absolute values of the weights in the neural network. This encourages the neural network to learn sparse models, where many of the weights are set to zero, resulting in simpler models.This is the lasso, which we discussed before.
+
+L2 Regularization: This technique adds a penalty term to the objective function that is proportional to the sum of the squared values of the weights in the neural network. This encourages the neural network to learn models with small weights, resulting in smoother models. This is the ridge penalty, which is the penalty we're setting in the term above-- mixture is by default set to 0.   
+
+Dropout: This technique randomly drops out some of the nodes in the neural network during training, forcing the remaining nodes to learn more robust representations of the input data. This can help to prevent overfitting and improve the generalization performance of the model.This is similar to the bagging method used in tree-based approaches. 
+
+Early Stopping: This technique stops the training process early, before the neural network has had a chance to overfit the training data. This is achieved by monitoring the performance of the neural network on a validation set during training, and stopping the training process when the performance on the validation set starts to degrade. This is not really recommended. 
+
+An elastic-net type regularization can be specified by including the mixture as well. 
+
+### Learning Rate
+
+The learning rate determines how quickly the model learns from the training data. In simple terms, it controls the step size taken in the direction of the steepest descent of the loss function during optimization.
+
+During training, the weights in the neural network are updated iteratively using  backpropagation, which involves computing the gradient of the loss function with respect to the weights and then adjusting the weights in the direction that reduces the loss.
+
+The learning rate determines how much the weights are adjusted during each iteration of backpropagation. A higher learning rate leads to larger weight updates, which can help the model converge faster, but may also cause the model to overshoot the optimal weights. A lower learning rate leads to smaller weight updates, which can help the model converge more gradually, but may also cause the model to get stuck in local minima of the loss function. If the learning rate is too high, the model may fail to converge or overshoot the optimal weights. If the learning rate is too low, the model may converge too slowly or get stuck in local minima.
+
+### Activation function
+
+
+The activation function is a mathematical function that is applied to the output of each node in a neural network to introduce non-linearity into the model. Without an activation function, a neural network would simply be a linear combination of the inputs and weights, which would severely limit its ability to learn complex patterns in the data.
+
+The activation function takes the weighted sum of the inputs from the previous layer and applies a non-linear transformation to produce an output, which becomes the input for the next layer. The output of the activation function is typically in the range [0, 1] or [-1, 1], depending on the specific function used.
+
+There are several different types of activation functions that can be specified:
+
+Sigmoid: The sigmoid function is a smooth, S-shaped curve that maps the input to a value between 0 and 1. It is commonly used in binary classification tasks, where the output of the neural network represents the probability of belonging to a certain class.
+
+ReLU (Rectified Linear Unit): The ReLU function is a simple, non-linear function that sets the output to zero if the input is negative, and to the input value if it is positive. It is currently one of the most popular activation functions used in deep learning, due to its simplicity and effectiveness.
+
+Tanh (Hyperbolic Tangent): The tanh function is similar to the sigmoid function, but maps the input to a value between -1 and 1. It is commonly used in classification and regression tasks, where the output of the neural network represents the target value.
+
+Softmax: The softmax function is a variant of the sigmoid function that is used to convert the output of the neural network into a probability distribution over multiple classes. It ensures that the probabilities sum to one, making it suitable for multi-class classification tasks.
+
+Exponential Lineary unit: The elu function is:
+
+$$f(x)= x \text{ if } x>0$$
+$$f(x)=\alpha*(exp(x)-1) \text{ if } x>=0$$
+ELU has the advantage of returning values for x when x<0, and is smooth and differentiable everywhere, which makes it easy to compute the gradient of the loss function during backpropagation. ELU also has an approximate mean of zero for its output, which can help reduce the effect of weird effects in the activation function possible with RELU. 
+
+### Tidymodels options
+Tidymodels using brulee has the following activation functions:
+
+- relu: Rectified linear unit https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html
+- elu: Exponential linear unit https://pytorch.org/docs/stable/generated/torch.nn.ELU.html
+- tanh: Hyperbolic Tangent https://pytorch.org/docs/stable/generated/torch.nn.Tanh.html
+- linear:  Linear function
+
+### Set Model for Tuning
+
 ```{r}
-nnet_model<- mlp(hidden_units = tune(), 
+nnet_model<- mlp(hidden_units = c(5, tune()), 
                  epochs=tune(),
                  penalty=tune(),
                  learn_rate = tune(),
@@ -109,11 +224,18 @@ nnet_model<- mlp(hidden_units = tune(),
   set_engine("brulee")
 ```
 
+
+
+### Set tuning grid
+
+As usual, tidymodels can give us some sensible values to explore in the tuning grid. 
+
 ```{r}
-mlp_grid<-grid_regular(parameters(nnet_model),levels = c(3,3,3,3))
+mlp_grid<-grid_regular(parameters(nnet_model),levels = c(5,3,3,3))
 ```
 
 
+## Construct workflow
 ```{r}
 nnet_wf<-workflow()%>%
   add_model(nnet_model)%>%
@@ -121,12 +243,19 @@ nnet_wf<-workflow()%>%
 ```
 
 
+## Resampling structure
 ```{r}
 zip_cv<-mc_cv(zip_train)
 ```
 
 
+### Cross validate for tuning 
 ```{r}
+
+fit_nnet=TRUE
+if(fit_nnet){
+doParallel::registerDoParallel()
+
 nnet_fit<-nnet_wf%>%
   tune_grid(resamples = zip_cv,
             grid=mlp_grid,
@@ -135,16 +264,19 @@ nnet_fit<-nnet_wf%>%
                 mn_log_loss
                 ),
                 control=control_resamples(save_pred=TRUE))
+
+save(nnet_fit,file="nnet_fit.Rdata")
+
+}
 ```
 ```{r}
-save(nnet_fit,file="nnet_fit.Rdata")
+load("nnet_fit.Rdata")
 ```
-
 
 
 ```{r}
 # select best values for the tuning parameter
-best_hyperparameters <- select_best(nnet_fit, metric = "mn_log_loss")
+best_hyperparameters <- select_best(nnet_fit, metric = "accuracy")
 
 # finalize the workflow with those parameter values
 final_wflow <- nnet_wf %>%
@@ -153,7 +285,6 @@ final_wflow <- nnet_wf %>%
 # `last_fit()` for fit on training, predict on test, and report performance
 lf <- last_fit(final_wflow, split_data)
 lf%>%collect_metrics()
-
 ```
 
 
