@@ -16,7 +16,7 @@ Tidy Modeling With R:
 
 https://www.tmwr.org/
 
-###1 6-Sep Feature selection via elastic net (incorporating lasso and ridge) Ch. 3
+### 1 6-Sep Feature selection via elastic net (incorporating lasso and ridge) Ch. 3
 
 
 
