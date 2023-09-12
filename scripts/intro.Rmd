@@ -1,0 +1,159 @@
+---
+title: "Intro"
+author: "Will Doyle"
+date: "2023-09-06"
+output: html_document
+---
+
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(boxr)
+library(here)
+```
+
+
+
+## Reading in Data
+
+
+```{r}
+cr<-read_csv(here("data","crdc.csv"))  
+```
+
+
+## Calculating Conditional Means
+
+We'll do a couple of simple conditional means, using state and percent free/reduced lunch as predictors. 
+
+
+## ISS rates by state
+
+```{r}
+cr%>%
+  group_by(state_name)%>%
+  summarize(avg_iss=mean(iss,na.rm=TRUE))%>%
+  arrange(-avg_iss)%>%
+  print(n=52)
+```
+
+
+## ISS rates by FRL
+
+```{r}
+cr%>%
+  mutate(frl_q=ntile(stu_per_frl,n=4))%>%
+  group_by(frl_q)%>%
+  summarize(avg_iss=mean(iss,na.rm=TRUE))%>%
+  arrange(-avg_iss)
+```
+
+## Plotting
+
+```{r}
+cr%>%
+  group_by(state_name)%>%
+  summarize(avg_iss=mean(iss,na.rm=TRUE))%>%
+  ggplot(aes(x=fct_reorder(state_name,avg_iss),
+             y=avg_iss,
+             fill=fct_reorder(state_name,avg_iss)))+
+  geom_col()+
+  coord_flip()+
+    theme(legend.position = "none")+
+  xlab("")+ylab("School-Level ISS")
+```
+
+
+
+```{r}
+cr%>%
+  ggplot(aes(x=stu_per_frl,y=iss))+
+  geom_point(size=.4,alpha=.2,color="purple")+
+  ylim(0,50)+
+  theme_minimal()+
+  xlab("In School Suspension")+
+  ylab("Percent of Students Eligible for Free/Reduced Lunch")
+```
+
+
+## The `tidymodels` workflow
+
+## Initial Feature Engineering
+
+```{r}
+cr<-cr %>%
+  select(iss,
+         contains("stu"),
+         contains("ngh"),
+         urbanicity,
+         state_name)
+```
+
+
+```{r}
+cr_split<-initial_split(cr)
+
+train<-training(cr_split)
+
+test<-testing(cr_split)
+```
+
+
+## Set Model
+```{r}
+cr_model<-linear_reg(mode="regression",engine="lm")
+```
+
+## Set Recipe
+```{r}
+cr_formula<-as.formula("iss~.")
+
+cr_rec<-recipe(cr_formula,data=train)%>%
+  update_role(iss,new_role = "outcome")%>%
+  step_other(all_nominal_predictors(),threshold = .01)%>%
+  step_dummy(all_nominal_predictors())%>%
+  step_filter_missing(all_predictors(),threshold = .1)%>%
+  step_naomit(all_outcomes(),all_predictors())%>%
+  step_corr(all_predictors(),threshold = .95)%>%
+  step_zv(all_predictors())%>%
+  step_normalize(all_predictors())
+```
+
+```{r}
+cr_rec%>%
+  prep()
+
+cr_rec%>%
+  prep()%>%
+   bake(train)
+```
+
+```{r}
+cr_wf<-workflow()%>%
+  add_model(cr_model)%>%
+  add_recipe(cr_rec)%>%
+  fit(train)
+```
+
+```{r}
+test<-
+  cr_wf%>%
+  predict(new_data=test)%>%
+  bind_cols(test)
+```
+
+```{r}
+test%>%
+  rmse(truth="iss",estimate=.pred)
+```
+
+```{r}
+cr_wf%>%
+  extract_fit_parsnip()%>%
+  tidy()%>%
+  arrange(-estimate)%>%
+  print(n=100)
+```
+
+
