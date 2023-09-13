@@ -16,24 +16,21 @@ Tidy Modeling With R:
 
 https://www.tmwr.org/
 
-###1 6-Sep Feature selection via elastic net (incorporating lasso and ridge) Ch. 3
+## Fall 2023
 
+### 1 Feature selection via elastic net (incorporating lasso and ridge) Ch. 3
 
+### 2 Model assessment via cross-validation Ch. 7
 
+### 3 Classification and Regression Trees Chs. 9 and 10
 
-### 2 20-Sep Model assessment via cross-validation 7
+### 4 Random Forests Ch. 15
 
-### 3 4-Oct Classification and Regression Trees 9 and 10
+### 5 Support Vector Machines Ch. 12
 
-### 4 18-Oct Random Forests 15
+## Spring 2024
 
-### 5 1-Nov Support Vector Machines 12
-
-### 6 15-Nov Neural Networks 11
-
-### 7 29-Nov Ensemble Methods 16
-
-## Spring 2023
+### 6 Neural Networks Overview Ch. 11
 
 ### Connection between neural nets and mle models-- focus on multinomial logit
 
@@ -45,4 +42,4 @@ https://www.tmwr.org/
 
 ### Cross validation and choosing hyperparameters
 
-### Application
+### Applications
