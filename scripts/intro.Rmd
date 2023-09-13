@@ -6,6 +6,35 @@ output: html_document
 ---
 
 
+# Introduction: Tidyverse and Tidymodels
+
+In this introduction, we'll get up and running with using `.Rmd` files, 
+
+## The Data
+
+
+Definition: The Civil Rights Data Collection (CRDC) is a survey conducted every other school year by the U.S. Department of Education’s Office for Civil Rights (OCR). It has been in operation since 1968.
+
+Coverage: The 2017–18 CRDC, like its predecessors from 2011–12, 2013–14, and 2015–16, gathers data from all public local educational agencies (LEA) and schools. This includes juvenile justice facilities, charter schools, alternative schools, and schools catering to students with disabilities.
+
+Purpose:
+
+The CRDC gathers data on primary civil rights indicators that show access and barriers to educational opportunities from early childhood to grade 12.
+
+It is a crucial tool for the OCR to ensure that entities receiving Federal financial assistance from the Department don’t discriminate based on race, color, national origin, sex, and disability.
+The OCR uses the CRDC data to:
+
+- Investigate complaints alleging discrimination.
+- Determine violations of Federal civil rights laws.
+- Initiate proactive compliance reviews targeting specific or widespread civil rights compliance issues.
+- Offer policy guidance and technical assistance to various stakeholders including educational institutions, parents, and students.
+
+The CRDC serves as a significant resource for other Department offices, Federal agencies, policymakers, researchers, educators, school officials, parents, students, and the general public who are interested in data related to student equity and opportunity.
+
+## Libraries
+
+ In R, there are collections of functions and methods that allow you to perform many actions without writing your code. These collections are called libraries or packages. Below I "activate" libraries for use in this session, called "loading." 
+
 ```{r}
 library(tidyverse)
 library(tidymodels)
@@ -13,10 +42,36 @@ library(boxr)
 library(here)
 ```
 
+In R, the concepts of installing and loading libraries are fundamental, and while they might seem similar, they serve different purposes. Let's break down the differences:
+
+Installing Libraries:
+
+What it means: Installing a library means downloading the package (which contains the library) from a repository (like CRAN or Bioconductor) and saving it on your local machine.
+
+How often you do it: You only need to install a library once on your machine (unless you need to update it to a newer version later on).
+
+Command: The typical command to install a package (and its library) is install.packages("package_name"). For example, to install the dplyr package, you'd use install.packages("dplyr").
+
+Storage: Once installed, the package is stored on your computer's disk, and you don't need an internet connection to use it in the future (unless you're updating it).
+
+Loading Libraries:
+
+What it means: Loading a library means making the functions and datasets of a previously installed package available in your current R session. It's like opening a toolbox you have in your garage so that you can use the tools inside.
+
+How often you do it: You need to load a library every time you start a new R session and want to use the functions or datasets from that library.
+
+Command: The typical command to load a library is library(package_name). For example, to load the dplyr library, you'd use library(dplyr).
+
+Session-specific: Loading a library affects only your current R session. If you close R and then reopen it, you'll need to load the library again if you want to use its functions.
+
+In Simple Terms:
+
+Think of installing a library in R as buying a physical book and putting it on your bookshelf. You only buy the book once. Loading a library, on the other hand, is like taking that book off the shelf and opening it to read. Every time you want to read the book, you need to take it off the shelf and open it, even if you've read it before.
 
 ## Reading in Data
 
-CRDC Data, link and etc. 
+The CRDC dataset we'll be working with includes disciplinary rates for in and out of school suspensions, with separate rates for students by race and ethnicity. For this example, we'll focus just on in-school suspension rates, the variabl `iss`. 
+
 
 ```{r}
 cr<-read_csv(here("data","crdc.csv"))  
@@ -38,8 +93,31 @@ cr%>%
   print(n=52)
 ```
 
+:
+
+
+
+The code uses functions from the `tidyverse` set of libraries, particularly `dplyr`. The tidyverse is a collection of R packages designed for data science. `dplyr` is one of these packages, and it provides a set of tools for efficiently manipulating datasets.
+
+Code Breakdown:
+
+`cr %>%`: This is the starting point. The %>% is called a "pipe" operator. It takes the output from one function and feeds it as input to the next function. Think of it as a conveyor belt moving your data from one step to the next.
+
+`group_by(state_name)`: This groups the data by the state_name variable. In other words, it's organizing the data so that all the records for each state are lumped together. This is done so that subsequent operations can be performed on each state's data separately.
+
+`summarize(avg_iss=mean(iss,na.rm=TRUE))`: This step calculates the average in-school suspensions (`iss`) for each state. The `mean()` function calculates the average, and `na.rm=TRUE` ensures that any missing values (represented as `NA` in R) are ignored in the calculation. The result is stored in a new variable called `avg_iss`.
+
+`arrange(-avg_iss)`: This arranges (or sorts) the states based on the average in-school suspensions (`avg_iss)`. The `-` sign before `avg_iss` means that the sorting is done in descending order, so states with the highest averages will be at the top.
+
+`print(n=52)`: This displays the results. The `n=52` argument tells R to print the results for all 52 states (assuming there are 52 states in the dataset, which might include territories or special districts).
+
+In Simple Terms:
+The code is taking the school discipline data, organizing it by state, calculating the average number of in-school suspensions for each state, and then sorting and displaying the states based on these averages, from highest to lowest.
+
 
 ## ISS rates by FRL
+
+Let's use that exact same logic, but this time use a continuous indepnednent variable, percent of students eligible for free or reduced price lunch. 
 
 ```{r}
 cr%>%
@@ -49,7 +127,54 @@ cr%>%
   arrange(-avg_iss)
 ```
 
+The code is categorizing schools into 4 groups based on the percentage of students receiving free or reduced lunch. Then, for each of these groups, it calculates the average number of in-school suspensions. Finally, it sorts these groups by the average suspensions, from highest to lowest.
+
+Building upon the previous explanation, let's break down this new code:
+
+1. **`mutate(frl_q=ntile(stu_per_frl,n=4))`**:
+   - **Function**: `mutate` is used to create or modify columns in a dataset.
+   - **Purpose**: This line is creating a new column named `frl_q`.
+   - **`ntile(stu_per_frl,n=4)`**: The `ntile` function divides the `stu_per_frl` column into 4 equal groups (quartiles). So, for instance, if `stu_per_frl` represents the percentage of students per school who receive free or reduced lunch, `frl_q` will categorize schools into 4 groups based on this percentage. Group 1 would have the lowest percentages, and group 4 would have the highest.
+
+2. **`group_by(frl_q)`**:
+   - As before, this groups the data, but now it's by the `frl_q` quartile groups we just created.
+
+3. **`summarize(avg_iss=mean(iss,na.rm=TRUE))`**:
+   - This calculates the average in-school suspensions (`iss`) for each of the `frl_q` quartile groups. As before, any missing values are ignored in the calculation.
+
+4. **`arrange(-avg_iss)`**:
+   - This arranges the quartile groups based on the average in-school suspensions (`avg_iss`) in descending order.
+
+
+
 ## Plotting
+
+`ggplot2` in R is like a versatile toolkit for creating visualizations. You start with a blank canvas, specify what data you're painting with, and then add layers (like shapes, colors, and patterns) to create your final artwork. The "grammar" in its name refers to a consistent set of rules you follow to create a wide variety of plots. `ggplot` was Developed by Hadley Wickham as part of the `tidyverse` collection of packages. It's based on the "Grammar of Graphics" concept, which provides a consistent and systematic approach to creating visualizations.
+
+ **Components**:
+   - **Data**: The dataset you want to visualize.
+   - **Aesthetics (aes)**: Mappings of variables in your data to visual properties like axes, colors, and sizes.
+   - **Geoms**: Geometric objects that represent the data. Examples include points (`geom_point()` for scatter plots), lines (`geom_line()` for line graphs), and bars (`geom_bar()` for bar charts).
+   - **Stats**: Statistical transformations that can be applied to the data before plotting, like binning data for histograms.
+   - **Scales**: Control how data values are translated to visual values. For instance, converting a continuous variable to colors or changing axis labels.
+   - **Coordinate Systems**: Define how geoms are positioned, like Cartesian coordinates or polar coordinates.
+   - **Facets**: Allow for creating multiple similar plots split by a factor or variable.
+
+ **Layered Approach**:
+   - `ggplot2` uses a layering paradigm. You start with a base layer specifying the data and global aesthetics and then add layers for geoms, stats, scales, etc.
+   - Layers are added using the `+` operator.
+
+ **Customization**:
+   - `ggplot2` offers extensive customization options for themes, legends, axis labels, and more.
+   - There are predefined themes, and users can create custom themes.
+
+**Usage**:
+   - Typically starts with the `ggplot()` function, specifying data and global aesthetics.
+   - Additional layers (like geoms) are added using the `+` operator.
+
+
+
+
 
 ```{r}
 cr%>%
@@ -64,7 +189,33 @@ cr%>%
   xlab("")+ylab("School-Level ISS")
 ```
 
+The code takes the school discipline data, calculates the average number of in-school suspensions for each state, and then creates a horizontal bar chart. Each bar represents a state, and the length of the bar indicates the average number of suspensions. The states are ordered in the chart based on these averages. The bars are colored by state, but there's no legend since the state names are already labeled on the chart.
 
+Let's break down the code in the context of the `ggplot2` explanation:
+
+1. **Data Preparation**:
+   - **`group_by(state_name)`**: The data (`cr`) is being grouped by the `state_name` variable, which represents different states.
+   - **`summarize(avg_iss=mean(iss,na.rm=TRUE))`**: For each state, the average number of in-school suspensions (`iss`) is calculated. This average is stored in a new column named `avg_iss`.
+
+2. **Plotting with `ggplot2`**:
+   - **`ggplot(aes(...))`**: Initiates the plot creation. The `aes()` function defines the aesthetics or visual properties of the plot.
+     - **`x=fct_reorder(state_name,avg_iss)`**: The x-axis represents states, but they're reordered based on the average in-school suspensions (`avg_iss`). This ensures states with similar averages are grouped together.
+     - **`y=avg_iss`**: The y-axis represents the average in-school suspensions.
+     - **`fill=fct_reorder(state_name,avg_iss)`**: The bars will be colored based on the state, but again, the colors are determined by the reordered states based on suspensions.
+
+   - **`geom_col()`**: Adds a layer to the plot to create a column (or bar) chart.
+
+   - **`coord_flip()`**: Flips the coordinates, turning the vertical column chart into a horizontal one. This can make it easier to read state names.
+
+   - **`theme(legend.position = "none")`**: Modifies the plot's theme to remove the legend. Since the bars are colored by state and the state names are already on the x-axis, a legend might be redundant.
+
+   - **`xlab("")`**: Removes the x-axis label.
+   
+   - **`ylab("School-Level ISS")`**: Sets the y-axis label to "School-Level ISS".
+
+## Scatterplots in GGPlot
+
+The code below is creating a scatter plot where each point represents a school (or another entity). The x-axis of the plot shows the percentage of students eligible for free or reduced lunch, while the y-axis displays the number of in-school suspensions. The points are small, semi-transparent, and purple, and the plot has a clean, minimalistic look. The y-axis is limited to show values between 0 and 50.
 
 ```{r}
 cr%>%
@@ -77,9 +228,71 @@ cr%>%
 ```
 
 
+Let's break down this code to understand the visualization it creates:
+
+ **Starting with the Data**:
+   - **`cr %>%`**: The dataset `cr` is being used as the basis for the visualization.
+
+**Initiating the Plot**:
+   - **`ggplot(aes(x=stu_per_frl, y=iss))`**: The `ggplot()` function is used to start the plot creation. The `aes()` function inside it defines the aesthetics or visual properties of the plot.
+     - **`x=stu_per_frl`**: The x-axis will represent the variable `stu_per_frl`, which might be the percentage of students per school who are eligible for free or reduced lunch.
+     - **`y=iss`**: The y-axis will represent the variable `iss`, which is the number of in-school suspensions.
+
+ **Adding Points to the Plot**:
+   - **`geom_point(size=.4, alpha=.2, color="purple")`**: This adds a layer of points to the plot. Each point represents a school (or another relevant entity from the dataset).
+     - **`size=.4`**: The size of each point is set to 0.4, making them relatively small.
+     - **`alpha=.2`**: The transparency of each point is set to 0.2 (on a scale from 0 to 1), making them semi-transparent. This can help in visualizing overlapping points.
+     - **`color="purple"`**: The color of each point is set to purple.
+
+ **Setting the Y-axis Limits**:
+   - **`ylim(0,50)`**: This restricts the y-axis to show values between 0 and 50. Any points outside this range won't be displayed.
+
+**Applying a Theme**:
+   - **`theme_minimal()`**: This applies a minimalistic theme to the plot, which provides a clean and distraction-free background.
+
+ **Setting Axis Labels**:
+   - **`xlab("In School Suspension")`**: Renames the x-axis label to "In School Suspension".
+   - **`ylab("Percent of Students Eligible for Free/Reduced Lunch")`**: Renames the y-axis label to "Percent of Students Eligible for Free/Reduced Lunch".
+
+
+
+
 ## The `tidymodels` workflow
 
-## Initial Feature Engineering
+`tidymodels` is a collection of R packages that provides a consistent and tidy approach to building, evaluating, and tuning statistical models. It integrates various stages of the modeling process, from data preprocessing to model evaluation, under a unified framework that's easy to use and aligns with the principles of the `tidyverse`.
+
+ **Philosophy**:
+   - **Tidy Data Principles**: `tidymodels` is built on the same principles as the `tidyverse`, emphasizing clear, readable, and consistent code. It's designed to work seamlessly with other `tidyverse` packages.
+   - **Unified Interface**: It offers a consistent interface for various modeling tasks, regardless of the underlying model type.
+
+ **Components**:
+   - **`recipes`**: Provides tools for feature engineering and data preprocessing. It allows you to specify a series of steps to prepare your data for modeling.
+   - **`parsnip`**: A unified interface for model specification. It allows you to define a model without committing to a specific computational engine.
+   - **`workflows`**: Combines pre-processing steps from `recipes` and model specifications from `parsnip` into a single object to streamline the modeling process.
+   - **`tune`**: Tools for model tuning, such as grid search and cross-validation.
+   - **`yardstick`**: For model evaluation and metric calculation.
+   - **`dials`**: Helps in creating tuning grids for different model parameters.
+   - **`rsample`**: Provides infrastructure for data splitting and resampling, which is essential for model validation and testing.
+
+**Workflow**:
+   - **Data Splitting**: Using `rsample`, you can create training and testing datasets.
+   - **Preprocessing**: With `recipes`, you define a series of preprocessing steps like normalization, encoding categorical variables, and more.
+   - **Model Specification**: Using `parsnip`, you specify the type of model you want (e.g., linear regression, decision tree) without choosing the computational engine (e.g., lm, xgboost).
+   - **Combining Preprocessing and Modeling**: `workflows` lets you combine your preprocessing steps and model specification into a single object.
+   - **Model Training**: Train your model on the training data.
+   - **Model Evaluation**: Once trained, you can evaluate your model's performance on the testing data using `yardstick`.
+   - **Tuning (if needed)**: If your model has hyperparameters, you can use `tune` and `dials` to find the best parameters.
+
+ **Advantages**:
+   - **Flexibility**: Easily switch between different model types or computational engines without drastically changing your code.
+   - **Consistency**: Regardless of the model type, the code structure remains consistent.
+   - **Integration**: Designed to work seamlessly with other `tidyverse` packages, making it easier to integrate modeling into a broader data analysis pipeline.
+
+
+
+## Data Wrangling
+
+I'm going to select just certain variables from the larger dataset. Luckily this dataset makes use of consistent variable naming patterns that I can use. I'm going to grab my dependent variable of `iss` and every variable that has `stu` for student and `ngh` for neighborhood. I'll also include the categorical variables of urbanicity and state. 
 
 ```{r}
 cr<-cr %>%
@@ -91,6 +304,10 @@ cr<-cr %>%
 ```
 
 
+## Splitting into training and testing
+
+The code is dividing the `cr` dataset into two parts: a training set (`train`) to teach a machine learning model and a testing set (`test`) to evaluate how well the model has learned. This split ensures that the model is evaluated on data it hasn't seen before, providing a more realistic assessment of its performance.
+
 ```{r}
 cr_split<-initial_split(cr)
 
@@ -99,11 +316,35 @@ train<-training(cr_split)
 test<-testing(cr_split)
 ```
 
+ **`cr_split <- initial_split(cr)`**:
+   - This line uses the `initial_split` function to divide the `cr` dataset into two parts. By default, `initial_split` typically allocates 75% of the data to the training set and the remaining 25% to the testing set, though this ratio can be adjusted.
+   - The result, `cr_split`, is a special split object that contains information about which rows of the original `cr` dataset belong to the training set and which belong to the testing set.
+
+ **`train <- training(cr_split)`**:
+   - Here, the `training` function extracts the training portion of the data from the `cr_split` object and assigns it to the `train` variable. This dataset will be used to train a machine learning model.
+
+ **`test <- testing(cr_split)`**:
+   - Similarly, the `testing` function extracts the testing portion of the data from the `cr_split` object and assigns it to the `test` variable. This dataset will be used to evaluate the performance of the trained model on unseen data.
+
 
 ## Set Model
+
+
+The code is setting up a linear regression model using the standard linear modeling engine in R.
 ```{r}
 cr_model<-linear_reg(mode="regression",engine="lm")
 ```
+
+
+**Detailed Explanation**:
+
+- **`linear_reg(mode="regression", engine="lm")`**:
+  - **`linear_reg()`**: This function is from the `parsnip` package, which is part of the `tidymodels` framework. It's used to specify a linear regression model.
+  - **`mode="regression"`**: This argument specifies the type of modeling. In this case, it's regression, which is used to predict a continuous outcome variable based on one or more predictor variables.
+  - **`engine="lm"`**: This argument specifies the computational engine to use for the linear regression. The "lm" engine refers to R's built-in `lm()` function for linear modeling.
+
+- **`cr_model`**: The specified linear regression model is then stored in the `cr_model` variable. This doesn't train the model yet; it merely sets up the type of model and the engine to be used. Training the model would require additional steps using the training data.
+
 
 ## Set Recipe
 ```{r}
