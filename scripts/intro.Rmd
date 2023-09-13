@@ -14,9 +14,9 @@ library(here)
 ```
 
 
-
 ## Reading in Data
 
+CRDC Data, link and etc. 
 
 ```{r}
 cr<-read_csv(here("data","crdc.csv"))  
