@@ -2,16 +2,14 @@
 title: "Intro"
 author: "Will Doyle"
 date: "2023-09-06"
-output: html_document
+output: pdf_document
 ---
-
 
 # Introduction: Tidyverse and Tidymodels
 
-In this introduction, we'll get up and running with using `.Rmd` files, 
+In this introduction, we'll get up and running with using `.Rmd` files, `tidyverse` and `tidymodels`.
 
 ## The Data
-
 
 Definition: The Civil Rights Data Collection (CRDC) is a survey conducted every other school year by the U.S. Department of Education’s Office for Civil Rights (OCR). It has been in operation since 1968.
 
@@ -44,7 +42,7 @@ library(here)
 
 In R, the concepts of installing and loading libraries are fundamental, and while they might seem similar, they serve different purposes. Let's break down the differences:
 
-Installing Libraries:
+*Installing Libraries:*
 
 What it means: Installing a library means downloading the package (which contains the library) from a repository (like CRAN or Bioconductor) and saving it on your local machine.
 
@@ -54,7 +52,7 @@ Command: The typical command to install a package (and its library) is install.p
 
 Storage: Once installed, the package is stored on your computer's disk, and you don't need an internet connection to use it in the future (unless you're updating it).
 
-Loading Libraries:
+*Loading Libraries:*
 
 What it means: Loading a library means making the functions and datasets of a previously installed package available in your current R session. It's like opening a toolbox you have in your garage so that you can use the tools inside.
 
@@ -72,16 +70,27 @@ Think of installing a library in R as buying a physical book and putting it on y
 
 The CRDC dataset we'll be working with includes disciplinary rates for in and out of school suspensions, with separate rates for students by race and ethnicity. For this example, we'll focus just on in-school suspension rates, the variabl `iss`. 
 
+Let's start by opening the `read_csv` function. 
 
 ```{r}
 cr<-read_csv(here("data","crdc.csv"))  
 ```
 
 
+
+ **Libraries**: In R, there are collections of functions and methods that allow you to perform many actions without writing your code. These collections are called libraries or packages. In your code, you're using functions from the "here" library and another library for reading CSV files.
+
+ **Code Breakdown**:
+   - **`cr <-`**: This is an assignment operation. It means that the result of the operation on the right side of the `<-` will be stored in a variable named `cr`. Think of `cr` as a container where you're saving the data you're about to read in.
+   
+   - **`read_csv()`**: This is a function that reads in data from a CSV (Comma-Separated Values) file and turns it into a format that R can understand and manipulate. CSV files are a type of file that represents data in a tabular form, where each row is a new line and columns are separated by commas.
+   
+   - **`here("data","crdc.csv")`**: The `here()` function is used to create file paths. It's particularly useful because it makes your code more portable (i.e., it can be run on different computers without changing the file path). In this case, `here("data","crdc.csv")` is creating a path to the "crdc.csv" file located inside a "data" folder. So, instead of writing out the full path to the file, you're just specifying the folder and file name, and the `here()` function figures out the rest.
+
+
 ## Calculating Conditional Means
 
 We'll do a couple of simple conditional means, using state and percent free/reduced lunch as predictors. 
-
 
 ## ISS rates by state
 
@@ -93,11 +102,10 @@ cr%>%
   print(n=52)
 ```
 
-:
-
-
 
 The code uses functions from the `tidyverse` set of libraries, particularly `dplyr`. The tidyverse is a collection of R packages designed for data science. `dplyr` is one of these packages, and it provides a set of tools for efficiently manipulating datasets.
+
+The code is taking the school discipline data, organizing it by state, calculating the average number of in-school suspensions for each state, and then sorting and displaying the states based on these averages, from highest to lowest.
 
 Code Breakdown:
 
@@ -110,10 +118,6 @@ Code Breakdown:
 `arrange(-avg_iss)`: This arranges (or sorts) the states based on the average in-school suspensions (`avg_iss)`. The `-` sign before `avg_iss` means that the sorting is done in descending order, so states with the highest averages will be at the top.
 
 `print(n=52)`: This displays the results. The `n=52` argument tells R to print the results for all 52 states (assuming there are 52 states in the dataset, which might include territories or special districts).
-
-In Simple Terms:
-The code is taking the school discipline data, organizing it by state, calculating the average number of in-school suspensions for each state, and then sorting and displaying the states based on these averages, from highest to lowest.
-
 
 ## ISS rates by FRL
 
@@ -131,21 +135,19 @@ The code is categorizing schools into 4 groups based on the percentage of studen
 
 Building upon the previous explanation, let's break down this new code:
 
-1. **`mutate(frl_q=ntile(stu_per_frl,n=4))`**:
+ **`mutate(frl_q=ntile(stu_per_frl,n=4))`**:
    - **Function**: `mutate` is used to create or modify columns in a dataset.
    - **Purpose**: This line is creating a new column named `frl_q`.
    - **`ntile(stu_per_frl,n=4)`**: The `ntile` function divides the `stu_per_frl` column into 4 equal groups (quartiles). So, for instance, if `stu_per_frl` represents the percentage of students per school who receive free or reduced lunch, `frl_q` will categorize schools into 4 groups based on this percentage. Group 1 would have the lowest percentages, and group 4 would have the highest.
 
-2. **`group_by(frl_q)`**:
+ **`group_by(frl_q)`**:
    - As before, this groups the data, but now it's by the `frl_q` quartile groups we just created.
 
-3. **`summarize(avg_iss=mean(iss,na.rm=TRUE))`**:
+ **`summarize(avg_iss=mean(iss,na.rm=TRUE))`**:
    - This calculates the average in-school suspensions (`iss`) for each of the `frl_q` quartile groups. As before, any missing values are ignored in the calculation.
 
-4. **`arrange(-avg_iss)`**:
+ **`arrange(-avg_iss)`**:
    - This arranges the quartile groups based on the average in-school suspensions (`avg_iss`) in descending order.
-
-
 
 ## Plotting
 
@@ -173,9 +175,7 @@ Building upon the previous explanation, let's break down this new code:
    - Additional layers (like geoms) are added using the `+` operator.
 
 
-
-
-
+## ISS rates by state
 ```{r}
 cr%>%
   group_by(state_name)%>%
@@ -193,11 +193,11 @@ The code takes the school discipline data, calculates the average number of in-s
 
 Let's break down the code in the context of the `ggplot2` explanation:
 
-1. **Data Preparation**:
+**Data Preparation**:
    - **`group_by(state_name)`**: The data (`cr`) is being grouped by the `state_name` variable, which represents different states.
    - **`summarize(avg_iss=mean(iss,na.rm=TRUE))`**: For each state, the average number of in-school suspensions (`iss`) is calculated. This average is stored in a new column named `avg_iss`.
 
-2. **Plotting with `ggplot2`**:
+**Plotting with `ggplot2`**:
    - **`ggplot(aes(...))`**: Initiates the plot creation. The `aes()` function defines the aesthetics or visual properties of the plot.
      - **`x=fct_reorder(state_name,avg_iss)`**: The x-axis represents states, but they're reordered based on the average in-school suspensions (`avg_iss`). This ensures states with similar averages are grouped together.
      - **`y=avg_iss`**: The y-axis represents the average in-school suspensions.
@@ -254,9 +254,6 @@ Let's break down this code to understand the visualization it creates:
    - **`xlab("In School Suspension")`**: Renames the x-axis label to "In School Suspension".
    - **`ylab("Percent of Students Eligible for Free/Reduced Lunch")`**: Renames the y-axis label to "Percent of Students Eligible for Free/Reduced Lunch".
 
-
-
-
 ## The `tidymodels` workflow
 
 `tidymodels` is a collection of R packages that provides a consistent and tidy approach to building, evaluating, and tuning statistical models. It integrates various stages of the modeling process, from data preprocessing to model evaluation, under a unified framework that's easy to use and aligns with the principles of the `tidyverse`.
@@ -288,7 +285,7 @@ Let's break down this code to understand the visualization it creates:
    - **Consistency**: Regardless of the model type, the code structure remains consistent.
    - **Integration**: Designed to work seamlessly with other `tidyverse` packages, making it easier to integrate modeling into a broader data analysis pipeline.
 
-
+Below I'll use tidymodel
 
 ## Data Wrangling
 
@@ -347,6 +344,11 @@ cr_model<-linear_reg(mode="regression",engine="lm")
 
 
 ## Set Recipe
+
+In the tidymodels framework, recipes is a package that provides a streamlined way to define and preprocess data for modeling. It allows users to specify a series of steps to transform and preprocess data, such as normalization, encoding categorical variables, and handling missing values. These steps are defined in a consistent and reproducible manner, creating a "recipe" that can be applied to both training and new datasets. This ensures that data transformations are consistent across different stages of the modeling process, facilitating more reliable model training and prediction. Essentially, recipes offers a tidy and systematic approach to data preparation in the modeling workflow.
+
+The code below is preparing the data for modeling. It sets up a series of steps to process the data, such as handling missing values, converting categorical variables into a format suitable for modeling, and normalizing the data.
+
 ```{r}
 cr_formula<-as.formula("iss~.")
 
@@ -361,6 +363,47 @@ cr_rec<-recipe(cr_formula,data=train)%>%
   step_normalize(all_predictors())
 ```
 
+The code is preparing the data for modeling. It sets up a series of steps to process the data, such as handling missing values, converting categorical variables into a format suitable for modeling, and normalizing the data.
+
+**Detailed Explanation**:
+
+1. **`cr_formula <- as.formula("iss~.")`**:
+   - This creates a formula indicating that the variable `iss` is the outcome (or dependent variable) we want to predict, and the `.` means we want to use all other variables in the dataset as predictors (or independent variables).
+
+2. **`recipe(cr_formula, data=train)`**:
+   - The `recipe` function starts the specification of preprocessing steps. It uses the formula and the training data (`train`) as inputs.
+
+3. **`update_role(iss, new_role = "outcome")`**:
+   - This explicitly sets the role of the `iss` variable as the "outcome" or the variable we're trying to predict.
+
+4. **`step_other(all_nominal_predictors(), threshold = .01)`**:
+   - For categorical (nominal) predictors, any categories that constitute less than 1% of the data will be lumped together into a new category, typically called "other".
+
+5. **`step_dummy(all_nominal_predictors())`**:
+   - Converts categorical variables into dummy variables (also known as one-hot encoding). This is necessary because many modeling algorithms require numerical input.
+
+6. **`step_filter_missing(all_predictors(), threshold = .1)`**:
+   - This step removes any predictor variables that have more than 10% missing values.
+
+7. **`step_naomit(all_outcomes(), all_predictors())`**:
+   - Removes rows (observations) from the data where either the outcome or any of the predictor variables have missing values.
+
+8. **`step_corr(all_predictors(), threshold = .95)`**:
+   - Identifies and removes predictor variables that have a correlation higher than 0.95 with any other predictor. This helps in addressing multicollinearity.
+
+9. **`step_zv(all_predictors())`**:
+   - Removes predictor variables that have a zero variance, meaning they have the same value for all observations.
+
+10. **`step_normalize(all_predictors())`**:
+   - Normalizes all predictor variables so they have a mean of 0 and a standard deviation of 1. This can be beneficial for certain modeling algorithms.
+
+The result of all these steps is stored in `cr_rec`, which can then be used to preprocess the training data and any future data in a consistent manner before modeling.
+
+
+## Checking out the results of a recipe
+
+The first code prepares the series of data transformation steps defined in cr_rec but doesn't apply them yet. The second code prepares and then applies these transformations to the train dataset.
+
 ```{r}
 cr_rec%>%
   prep()
@@ -370,6 +413,18 @@ cr_rec%>%
    bake(train)
 ```
 
+
+
+1. **`cr_rec %>% prep()`**:
+   - **`prep()`**: This function prepares the steps defined in the `cr_rec` recipe. It computes any required statistics or parameters needed for the transformations (e.g., mean and standard deviation for normalization) but doesn't apply the transformations to the data yet. Think of it as getting the recipe ready for cooking but not actually cooking.
+
+2. **`cr_rec %>% prep() %>% bake(train)`**:
+   - **`bake()`**: Once the recipe is prepared with `prep()`, the `bake()` function is used to apply the transformations to a dataset. In this case, the transformations are applied to the `train` dataset.
+   - Essentially, this sequence of functions means "prepare the transformations and then apply them to the `train` dataset."
+
+By separating the `prep()` and `bake()` steps, `tidymodels` allows for a consistent set of transformations to be easily applied to different datasets, ensuring that both training and testing data undergo the same preprocessing.
+
+## Creating a workflow and fitting the model
 ```{r}
 cr_wf<-workflow()%>%
   add_model(cr_model)%>%
@@ -377,6 +432,24 @@ cr_wf<-workflow()%>%
   fit(train)
 ```
 
+The code is setting up a workflow that combines both the data preprocessing steps (from `cr_rec`) and the modeling specification (from `cr_model`). It then trains the model using the `train` dataset.
+
+
+1. **`workflow()`**:
+   - This function initializes a workflow. In the `tidymodels` framework, a workflow is a way to bundle together preprocessing steps (like those defined in a recipe) and a model specification.
+
+2. **`add_model(cr_model)`**:
+   - This adds the model specification from `cr_model` (which was defined earlier) to the workflow. It tells the workflow what kind of model we're planning to train.
+
+3. **`add_recipe(cr_rec)`**:
+   - This adds the data preprocessing steps from `cr_rec` (which were defined earlier) to the workflow. It tells the workflow how to preprocess the data before training the model.
+
+4. **`fit(train)`**:
+   - Once the workflow has both the model and the recipe, the `fit()` function is used to train the model using the `train` dataset. This involves applying the preprocessing steps to the training data and then training the model on the processed data.
+
+The result is stored in `cr_wf`. This object now contains the trained model along with all the preprocessing steps, making it ready for predictions on new data.
+
+## Testing predictions in the testing split
 ```{r}
 test<-
   cr_wf%>%
@@ -384,17 +457,90 @@ test<-
   bind_cols(test)
 ```
 
+**In Simple Terms**:
+The code calculates the Root Mean Squared Error (RMSE) for the predictions in the `test` dataset by comparing the predicted values (`.pred`) with the actual values (`iss`).
+
+**Detailed Explanation**:
+
+1. **`test %>%`**:
+   - This takes the `test` dataset, which now contains both the actual values (`iss`) and the predicted values (`.pred`), as the starting point for the subsequent operations.
+
+2. **`rmse(truth="iss", estimate=.pred)`**:
+   - The `rmse()` function from the `yardstick` package (part of `tidymodels`) is used to calculate the RMSE.
+   - **`truth="iss"`**: Specifies that the actual values are in the `iss` column of the `test` dataset.
+   - **`estimate=.pred`**: Specifies that the predicted values are in the `.pred` column of the `test` dataset.
+
+The result will be the RMSE value, which provides a measure of the differences between the predicted and actual values. A lower RMSE indicates a better fit of the model to the data, while a higher RMSE suggests a poorer fit.
+
+Note: Ensure that the `yardstick` package is loaded to use the `rmse()` function.
+
+
+
 ```{r}
 test%>%
   rmse(truth="iss",estimate=.pred)
 ```
+**In Simple Terms**:
+The code calculates the Root Mean Squared Error (RMSE) for the predictions in the `test` dataset by comparing the predicted values (`.pred`) with the actual values (`iss`).
+
+**Detailed Explanation**:
+
+1. **`test %>%`**:
+   - This takes the `test` dataset, which now contains both the actual values (`iss`) and the predicted values (`.pred`), as the starting point for the subsequent operations.
+
+2. **`rmse(truth="iss", estimate=.pred)`**:
+   - The `rmse()` function from the `yardstick` package (part of `tidymodels`) is used to calculate the RMSE.
+   - **`truth="iss"`**: Specifies that the actual values are in the `iss` column of the `test` dataset.
+   - **`estimate=.pred`**: Specifies that the predicted values are in the `.pred` column of the `test` dataset.
+
+The result will be the RMSE value, which provides a measure of the differences between the predicted and actual values. A lower RMSE indicates a better fit of the model to the data, while a higher RMSE suggests a poorer fit.
+
+Note: Ensure that the `yardstick` package is loaded to use the `rmse()` function.
+
+
+## Examining Coefficients
+
+Coefficients? Who cares about coefficients? We've already got an rmse!
+
+
+The code fits the model above to the full dataset, extracts the coefficients from the trained model from the workflow, organizes these results in a tidy format, sorts them based on the magnitude of the estimates (from highest to lowest), and then displays the top 100 results.
 
 ```{r}
-cr_wf%>%
+cr_wf_full<-
+  cr_wf%>%
+  fit(cr)
+
+cr_wf_full%>%
   extract_fit_parsnip()%>%
   tidy()%>%
   arrange(-estimate)%>%
   print(n=100)
 ```
 
+
+**Detailed Explanation**:
+
+1. **`cr_wf %>%`**:
+   - This takes the trained workflow `cr_wf` as the starting point for the subsequent operations.
+
+2. **`extract_fit_parsnip()`**:
+   - This function extracts the results of the trained model from the workflow. In the context of a linear regression model (as indicated by previous interactions), this would typically include coefficients for each predictor variable.
+
+3. **`tidy()`**:
+   - This function, from the `broom` package, tidies the results of the model, converting them into a clean and standardized data frame format. For a linear regression model, this would typically result in a data frame with columns like `term` (the predictor variable name), `estimate` (the coefficient value), and others like `std.error`, `statistic`, and `p.value`.
+
+4. **`arrange(-estimate)`**:
+   - This arranges (or sorts) the results based on the `estimate` column in descending order (from highest to lowest coefficient value).
+
+5. **`print(n=100)`**:
+   - This displays the top 100 results after sorting. It's especially useful if there are many predictor variables in the model and you want to see the ones with the highest coefficient values.
+
+Overall, this code is useful for understanding the impact and significance of different predictor variables in the trained model. The sorted list can give insights into which variables have the most substantial positive or negative effects on the outcome. 
+
+Note: Ensure that the `broom` package is loaded to use the `tidy()` function.
+
+
+## Moving forward
+
+We'll next use lasso, ridge and elastic net to select the features that contribute the most to the model, resulting in a model that should be able to better predict the outcome in the testing data. 
 

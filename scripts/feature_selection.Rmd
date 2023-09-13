@@ -6,8 +6,6 @@ author: "Will Doyle"
 ## Introduction
 
 
-
-
 ```{r}
 library(tidyverse)
 library(tidymodels)
