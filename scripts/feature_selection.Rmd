@@ -354,9 +354,16 @@ cr_ridge_tune_fit%>%
 ```
 
 ```{r}
-best_ridge_penalty<-
+best_ridge_penalty<-select_best(cr_ridge_tune_fit)
+
+best_ridge_penalty$penalty[1]
+
+cr_tune_model<- 
+  linear_reg(penalty=best_ridge_penalty,mixture=mixture_spec)%>% 
+  set_engine("glmnet")
 
 cr_ridge_result<-cr_wf%>%
+  update_model()
   fit(cr_train)
 
 cr_ridge_result%>%extract_fit_parsnip()%>%tidy()
