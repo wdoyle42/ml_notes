@@ -118,6 +118,11 @@ cr_wf<-cr_wf%>%
   fit(cr_train)
 ```
 
+```{r}
+ols_coeffs<-cr_wf%>%extract_fit_parsnip()%>%tidy()
+```
+
+
 ## Predict results in the testing data
 
 Now we can use the estimates in the fitted model  to predict outcomes in the testing dataset. These will be called `.pred` until we rename them as `.pred1`, and add them to the dataset.  
@@ -205,7 +210,6 @@ cr_test%>%
 
 cr_test%>%
   rmse(truth=iss,estimate=.pred1)
-
 ```
 
 We can also look at the coefficients to get a sense of what got included and what got dropped. 
@@ -356,14 +360,14 @@ cr_ridge_tune_fit%>%
 ```{r}
 best_ridge_penalty<-select_best(cr_ridge_tune_fit)
 
-best_ridge_penalty$penalty[1]
+best_ridge_penalty<-best_ridge_penalty$penalty[1]
 
 cr_tune_model<- 
   linear_reg(penalty=best_ridge_penalty,mixture=mixture_spec)%>% 
   set_engine("glmnet")
 
 cr_ridge_result<-cr_wf%>%
-  update_model()
+  update_model(cr_tune_model)%>%
   fit(cr_train)
 
 cr_ridge_result%>%extract_fit_parsnip()%>%tidy()
@@ -385,13 +389,13 @@ cr_tune_model<-
 ```
 
 ```{r}
-enet_grid<-grid_regular(parameters(cr_tune_fit) ,levels=10)
+enet_grid<-grid_regular(extract_parameter_set_dials(cr_tune_model) ,levels=10)
 ```
 
 We can use `add_model` to change our workflow with the new model. 
 ```{r}
 cr_wf<-cr_wf%>%
-  update_model(cr_tune_fit)
+  update_model(cr_tune_model)
 ```
 
 
@@ -400,6 +404,26 @@ Then we can use `tune_grid` to run the model through the resampled data, using t
 cr_enet_tune_fit <- 
   cr_wf %>%
     tune_grid(cr_rs,grid=enet_grid)
+```
+
+
+## Coeffs from Enet
+
+
+```{r}
+best_enet<-select_best(cr_enet_tune_fit)
+
+best_enet_penalty<-bestenety$penalty[1]
+
+cr_tune_model<- 
+  linear_reg(penalty=best_ridge_penalty,mixture=mixture_spec)%>% 
+  set_engine("glmnet")
+
+cr_ridge_result<-cr_wf%>%
+  update_model(cr_tune_model)%>%
+  fit(cr_train)
+
+cr_ridge_result%>%extract_fit_parsnip()%>%tidy()
 ```
 
 ## Examine Results
@@ -430,6 +454,14 @@ cr_ridge_tune_fit%>%select_best()
 ```
 
 ```{r}
+cr_enet_tune_fit%>%
+  collect_metrics()%>%
+  filter(.metric=="rmse")%>%
+  arrange(mean)%>%
+  print(n=100)
 
+cr_enet_tune_fit%>%show_best()
+cr_enet_tune_fit%>%select_best()
 ```
+
 
