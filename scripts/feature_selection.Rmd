@@ -5,47 +5,46 @@ author: "Will Doyle"
 
 ## Introduction
 
-
 ```{r}
 library(tidyverse)
 library(tidymodels)
+library(here)
 ```
-
-
 
 ## The Data
 
-We'll use the Ames housing data, a dataset of house prices and characteristics for Ames Iowa. We'll try to predict house prices. 
+We'll again use the civil rights dataset. 
+
 
 ```{r}
-data(ames)
+cr<-read_csv(here("data", "crdc.csv"))  
 ```
+
+
 
 
 ## Feature Engineering
 
-Feature engineering is the Machine Learning term for what we would call data wrangling. Some of this can be done programatically, other parts more "by hand." The code below will select lot area, year built, rooms above ground, and ever variable that ends with "SF" which stands for square feet. It also logs sale price-- the dependent variable. 
-```{r}
-ames<-ames%>%
-  select(Sale_Price,
-    Lot_Area,
-         Year_Built,
-         TotRms_AbvGrd,
-         ends_with("_SF"))%>%
-  mutate(log_sale_price=log(Sale_Price))%>%
-  select(-Sale_Price)
-```
+Feature engineering is crucial in Machine Learning for improving model performance. It involves transforming raw data into a format that is better suited for a model. Below, we select the in-school suspension rates (iss), student-related features, neighborhood characteristics, urbanicity, and region.
 
+```{r}
+cr<-cr %>%
+  select(iss,
+         contains("stu"), 
+         contains("ngh"),
+         urbanicity,
+         region)
+```
 ## Training and Testing
 
 We'll split the data into training and testing, using the default 75/25 split. 
 
 ```{r}
-split_data<-initial_split(ames)
+split_data<-initial_split(cr)
 
-ames_train<-training(split_data)
+cr_train<-training(split_data)
 
-ames_test<-testing(split_data)
+cr_test<-testing(split_data)
 ```
 
 ## OLS 
@@ -57,7 +56,7 @@ For the baseline example let's run OLS on the data
 `Tidymodels` relies on the idea of a modeling workflow. Let's start by defining an empty one. 
 
 ```{r}
-ames_wf<-workflow()
+cr_wf<-workflow()
 ```
 
 
@@ -74,7 +73,7 @@ lm_fit<-
 
 Then we can add the model to the workflow. 
 ```{r}
-ames_wf<-ames_wf%>%
+cr_wf<-cr_wf%>%
   add_model(lm_fit)
 ```
 
@@ -85,24 +84,29 @@ A recipe in tidymodels is the set of steps that need to be done to the data prio
 First we'll set a formula-- the one below says to create a model with log sale price on the LHS and everything else in the dataset on the RHS. 
 
 ```{r}
-ames_formula<-as.formula("log_sale_price~.")
+cr_formula<-as.formula("iss~.")
 ```
 
 With that formula, we can then define the recipe. The recipe are the remaining feature engineering steps that need to occur. In this case we're going to define the dependent variable via `update_role`, then normalize the data via `step_normalize` then drop all missing data via `step_naomit.`
 
 ```{r}
-ames_rec<-recipe(ames_formula,ames)%>%
-  update_role(log_sale_price,new_role="outcome")%>%  ## specify dv
-  step_normalize(all_predictors())%>% ## Convert all to Z scores
-  step_naomit(all_predictors()) ## drop missing
+cr_rec<-recipe(cr_formula,data=cr_train)%>%
+  update_role(iss,new_role = "outcome")%>%
+  step_other(all_nominal_predictors(),threshold = .01)%>%
+  step_dummy(all_nominal_predictors())%>%
+  step_filter_missing(all_predictors(),threshold = .1)%>%
+  step_naomit(all_outcomes(),all_predictors())%>%
+  step_zv(all_predictors())%>%
+  step_corr(all_predictors(),threshold = .95)%>%
+  step_normalize(all_predictors())
 ```
 
 
 Now we can add the recipe to the workflow.
 
 ```{r}
-ames_wf<-ames_wf%>%
-  add_recipe(ames_rec)
+cr_wf<-cr_wf%>%
+  add_recipe(cr_rec)
 ```
 
 ## Fit the model to the training data
@@ -110,8 +114,8 @@ ames_wf<-ames_wf%>%
 Quite easily done via `fit`
 
 ```{r}
-ames_wf<-ames_wf%>%
-  fit(ames_train)
+cr_wf<-cr_wf%>%
+  fit(cr_train)
 ```
 
 ## Predict results in the testing data
@@ -119,11 +123,11 @@ ames_wf<-ames_wf%>%
 Now we can use the estimates in the fitted model  to predict outcomes in the testing dataset. These will be called `.pred` until we rename them as `.pred1`, and add them to the dataset.  
 
 ```{r}
-  ames_test<-
-  ames_wf%>%
-  predict(new_data=ames_test)%>%
+  cr_test<-
+  cr_wf%>%
+  predict(new_data=cr_test)%>%
   rename(.pred1=.pred)%>%
-  bind_cols(ames_test)
+  bind_cols(cr_test)
 ```
 
 ## Calculate RMSE
@@ -131,17 +135,15 @@ Now we can use the estimates in the fitted model  to predict outcomes in the tes
 Next we can use the `rmse` command to compare the actual log sale price in the dataset to the predicted log price. 
 
 ```{r}
-ames_test%>%
-  rmse(truth=log_sale_price,estimate=.pred1)
+cr_test%>%
+  rmse(truth=iss,estimate=.pred1)
 ```
 
 
 ## Lasso model
 
 
-## Lasso for Feature Selection
-
-One of the key decisions for an analyst is which variables to include. We can make decisions about this using theory, or our understanding of the context, but we can also rely on computational approaches. This is known as *regularization* and it involves downweighting the importance of coefficients from a model based on the contribution that a predictor makes. We're going to make use of a regularization penalty known as the "lasso." The lasso downweights variables mostly be dropping variables that are highly correlated with one another, leaving only one of the correlated variables as contributors to the model. We set the degree to which this penalty will be implemented by setting the "penalty" variable in the model specification. 
+One of the key decisions for an analyst is which variables to include. We can make decisions about this using theory, or our understanding of the context, but we can also rely on computational approaches. This is known as *regularization* and it involves downweighting the importance of coefficients from a model based on the contribution that a predictor makes. We're going to make use of a regularization penalty known as the "lasso." The lasso downweights variables mostly be dropping variables that are highly correlated with one another, leaving only one of the correlated variables as contributors to the model. We set the degree to which this penalty will be implemented by setting the "penalty" variable in the model specification. (This is also called the L1 penalty, or L1 regularization)
 
 
 Now we can update the model to use lasso, which will subset on a smaller number of covariates. In the `tidymodels` setup, ridge is alpha (mixture)=0, while lasso is alpha (mixture)=1.   https://parsnip.tidymodels.org/reference/glmnet-details.htm
@@ -160,80 +162,58 @@ lasso_fit<-
 ## Define the Workflow
 
 ```{r}
-ames_wf<-workflow()
+cr_wf<-workflow()
 ```
 
 ## Add the Model
 
 ```{r}
-ames_wf<-ames_wf%>%
+cr_wf<-cr_wf%>%
   add_model(lasso_fit)
 ```
 
-## Set Formula
-
-In setting the recipe for this model, we're now going to include ever variable in the dataset. This is very common in these kinds of applications. 
-
-```{r}
-ames_formula<-as.formula("log_sale_price~.")
-```
-
-## Recipe
-
-Because we have so many predictors, we need to generalize our process for feature engineering. Instead of running steps on particular variables, we're going to use the capabilities of tidymodels to select types of variables. 
-
-
-```{r}
-ames_rec<-recipe(ames_formula,ames)%>%
-  update_role(log_sale_price,new_role="outcome")%>%  ## specify dv
-  step_normalize(all_predictors())%>% ## Convert all to Z scores
-  step_naomit(all_predictors()) ## drop missing
-```
-
-To look at what a prepped dataset would look like, we can use the `prep`--> then `bake` commands. 
-
-```{r}
-ames_processed<-ames_rec%>%prep()%>%bake(ames_train)
-```
 
 Now we can add our recipe to the workflow. 
 
 ```{r}
-ames_wf<-ames_wf%>%
-  add_recipe(ames_rec)
+cr_wf<-cr_wf%>%
+  add_recipe(cr_rec)
 ```
 
 Aad fit the data
 
 
 ```{r}
-ames_wf<-ames_wf%>%
-  fit(ames_train)
+cr_wf<-cr_wf%>%
+  fit(cr_train)
 ```
 
 We can use the same set of commands as above to generate as prediction, which will be pred2 this time.
 
 ```{r}
-  ames_test<-
-  ames_wf%>%
-  predict(new_data=ames_test)%>%
+  cr_test<-
+  cr_wf%>%
+  predict(new_data=cr_test)%>%
   rename(.pred2=.pred)%>%
-  bind_cols(ames_test)
+  bind_cols(cr_test)
 ```
 
 We can then check the rmse from our model. 
 ```{r}
-ames_test%>%
-  rmse(truth=log_sale_price,estimate=.pred2)
+cr_test%>%
+  rmse(truth=iss,estimate=.pred2)
+
+cr_test%>%
+  rmse(truth=iss,estimate=.pred1)
+
 ```
 
 We can also look at the coefficients to get a sense of what got included and what got dropped. 
 ```{r}
-ames_wf%>%
+cr_wf%>%
   extract_fit_parsnip()%>%
   tidy()
 ```
-
 
 
 ## Cross Validation
@@ -260,30 +240,29 @@ We're going to cut our training dataset 75/25, and we'll repeat that 25 times. T
 The code below will generate a resampled dataset using monte carlo resampling. 
 
 ```{r}
-ames_rs<-mc_cv(ames_train,times=25) ## More like 1000 in practice
+cr_rs<-mc_cv(cr_train,times=100) ## More like 1000 in practice
 ```
 
 
 We can then fit the model to the resampled data via `fit_resamples`.
 ```{r}
-ames_lasso_fit<-ames_wf%>%
-  fit_resamples(ames_rs)
+cr_lasso_fit<-cr_wf%>%
+  fit_resamples(cr_rs)
 ```
 
 The model has now been fit to 25 versions of the training data. Let's look at the metrics using `collect_metrics`.
 ```{r}
-ames_lasso_fit%>%collect_metrics()
+cr_lasso_fit%>%collect_metrics()
 ```
 
 
 We can also pull certain metrics like rmse one at a time if we want.
 ```{r}
-ames_lasso_fit%>%
+cr_lasso_fit%>%
   unnest(.metrics)%>%
   filter(.metric=="rmse")%>%
   ggplot(aes(x=.estimate))+
   geom_density()
-
 ```
 
 
@@ -300,7 +279,7 @@ Of course we don't know what penalty to use in the lasso model, so we can tune i
 by using the `penalty=tune()` approach below. 
 
 ```{r}
-ames_tune_model<- 
+cr_tune_model<- 
   linear_reg(penalty=tune(),mixture=mixture_spec)%>% 
   set_engine("glmnet")
 ```
@@ -308,20 +287,20 @@ ames_tune_model<-
 Now that we've said which parameter to tune, we'll use the `grid_regular` command to get a set of nicely spaced out values. This command is specific to the parameter, so it will choose reasonable values for a penalty. 
 
 ```{r}
-lasso_grid<-grid_regular(parameters(ames_tune_model) ,levels=10)
+lasso_grid<-grid_regular(extract_parameter_set_dials(cr_tune_model) ,levels=10)
 ```
 
 We can use `update_model` to change our workflow with the new model. 
 ```{r}
-ames_wf<-ames_wf%>%
-  update_model(ames_tune_model)
+cr_wf<-cr_wf%>%
+  update_model(cr_tune_model)
 ```
 
 Then we can use `tune_grid` to run the model through the resampled data, using the grid supplied. 
 ```{r}
-ames_lasso_tune_fit <- 
-  ames_wf %>%
-    tune_grid(ames_rs,grid=lasso_grid)
+cr_lasso_tune_fit <- 
+  cr_wf %>%
+    tune_grid(cr_rs,grid=lasso_grid)
 ```
 
 ## Examine Results
@@ -329,47 +308,91 @@ ames_lasso_tune_fit <-
 Lets' take a look and see which models fit better. 
 
 ```{r}
-ames_lasso_tune_fit%>%
+cr_lasso_tune_fit%>%
   collect_metrics()%>%
   filter(.metric=="rmse")%>%
   arrange(mean)
 ```
+
+
+## Ridge Regression
+
+Ridge regression is another technique for regularization, which helps to solve the multicollinearity problem by adding a degree of bias to the regression estimates. It includes every predictor in the model but shrinks the coefficients of less important predictors towards zero, thus minimizing their impact on the model.
+
+In the tidymodels setup, ridge is specified with alpha (mixture) = 0.
+
+```{r}
+mixture_spec<-0
+
+cr_tune_model<- 
+  linear_reg(penalty=tune(),mixture=mixture_spec)%>% 
+  set_engine("glmnet")
+```
+
+```{r}
+ridge_grid<-grid_regular(extract_parameter_set_dials(cr_tune_model) ,levels=10)
+```
+
+```{r}
+cr_wf<-cr_wf%>%
+  update_model(cr_tune_model)
+```
+
+```{r}
+cr_ridge_tune_fit <- 
+  cr_wf %>%
+    tune_grid(cr_rs,grid=ridge_grid)
+```
+
+
+
+```{r}
+cr_ridge_tune_fit%>%
+  collect_metrics()%>%
+  filter(.metric=="rmse")%>%
+  arrange(mean)
+```
+
+```{r}
+best_ridge_penalty<-
+
+cr_ridge_result<-cr_wf%>%
+  fit(cr_train)
+
+cr_ridge_result%>%extract_fit_parsnip()%>%tidy()
+```
+
 
 ## Elastic Net
 
 The elastic net model combines the lasso and the ridge using the mixture parameter. Let's just go ahead and tune on that as well.
 
 ```{r}
-ames_wf<-workflow()
+cr_wf<-workflow()
 ```
 
 ```{r}
-ames_tune_fit<- 
+cr_tune_model<- 
   linear_reg(penalty=tune(),mixture=tune())%>% 
   set_engine("glmnet")
 ```
 
 ```{r}
-enet_grid<-grid_regular(parameters(ames_tune_fit) ,levels=10)
+enet_grid<-grid_regular(parameters(cr_tune_fit) ,levels=10)
 ```
 
 We can use `add_model` to change our workflow with the new model. 
 ```{r}
-ames_wf<-ames_wf%>%
-  add_model(ames_tune_fit)
-```
-
-```{r}
-ames_wf<-ames_wf%>%
-  add_recipe(ames_rec)
+cr_wf<-cr_wf%>%
+  update_model(cr_tune_fit)
 ```
 
 
 Then we can use `tune_grid` to run the model through the resampled data, using the grid supplied. 
 ```{r}
-ames_lasso_tune_fit <- 
-  ames_wf %>%
-    tune_grid(ames_rs,grid=enet_grid)
+cr_enet_tune_fit <- 
+  cr_wf %>%
+    tune_grid(cr_rs,grid=enet_grid)
 ```
 
 ## Examine Results
@@ -377,15 +400,29 @@ ames_lasso_tune_fit <-
 Lets' take a look and see which models fit better. 
 
 ```{r}
-ames_lasso_tune_fit%>%
+cr_lasso_tune_fit%>%
   collect_metrics()%>%
   filter(.metric=="rmse")%>%
   arrange(mean)%>%
   print(n=100)
 
-
-ames_lasso_tune_fit%>%show_best()
-ames_lasso_tune_fit%>%select_best()
+cr_lasso_tune_fit%>%show_best()
+cr_lasso_tune_fit%>%select_best()
 ```
 
+
+```{r}
+cr_lasso_tune_fit%>%
+  collect_metrics()%>%
+  filter(.metric=="rmse")%>%
+  arrange(mean)%>%
+  print(n=100)
+
+cr_ridge_tune_fit%>%show_best()
+cr_ridge_tune_fit%>%select_best()
+```
+
+```{r}
+
+```
 
