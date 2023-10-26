@@ -52,10 +52,11 @@ Just to get a sense of this data, let's take a look at some of the data, using t
 
 ```{r}
 display_image <- function(data){
-  message("Displaying: ", data$y)
+  message("Displaying: ", data$label)
   
   data %>% 
     select(-label,-split) %>% 
+    mutate_each(funs =function(x){(x*-1)})%>%
     unlist(use.names = FALSE) %>% 
     as.cimg(x = 16, y = 16) %>% 
     plot(axes = FALSE)
@@ -66,7 +67,7 @@ Some of these are not exactly what we might expect . . .
 
 ```{r}
 zip_train %>% 
-  slice(50) %>% 
+  slice(111) %>% 
   display_image()
 ```
 

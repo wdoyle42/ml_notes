@@ -5,6 +5,10 @@ author: "Will Doyle"
 
 ## Introduction
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 0765c19c1e43f42268f4c2692c0cd13573d209bf
 ```{r}
 library(tidyverse)
 library(tidymodels)
@@ -437,6 +441,7 @@ cr_lasso_tune_fit%>%
   arrange(mean)%>%
   print(n=100)
 
+<<<<<<< HEAD
 cr_lasso_tune_fit%>%show_best()
 cr_lasso_tune_fit%>%select_best()
 ```
@@ -462,6 +467,11 @@ cr_enet_tune_fit%>%
 
 cr_enet_tune_fit%>%show_best()
 cr_enet_tune_fit%>%select_best()
+=======
+
+ames_lasso_tune_fit%>%show_best()
+ames_lasso_tune_fit%>%select_best()
+>>>>>>> 0765c19c1e43f42268f4c2692c0cd13573d209bf
 ```
 
 
