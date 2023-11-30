@@ -36,6 +36,10 @@ The CRDC serves as a significant resource for other Department offices, Federal 
 ```{r}
 library(tidyverse)
 library(tidymodels)
+<<<<<<< HEAD
+=======
+library(boxr)
+>>>>>>> 0765c19c1e43f42268f4c2692c0cd13573d209bf
 library(here)
 ```
 
@@ -61,6 +65,11 @@ Command: The typical command to load a library is library(package_name). For exa
 
 Session-specific: Loading a library affects only your current R session. If you close R and then reopen it, you'll need to load the library again if you want to use its functions.
 
+<<<<<<< HEAD
+=======
+In Simple Terms:
+
+>>>>>>> 0765c19c1e43f42268f4c2692c0cd13573d209bf
 Think of installing a library in R as buying a physical book and putting it on your bookshelf. You only buy the book once. Loading a library, on the other hand, is like taking that book off the shelf and opening it to read. Every time you want to read the book, you need to take it off the shelf and open it, even if you've read it before.
 
 ## Reading in Data
@@ -70,7 +79,11 @@ The CRDC dataset we'll be working with includes disciplinary rates for in and ou
 Let's start by opening the `read_csv` function. 
 
 ```{r}
+<<<<<<< HEAD
 cr<-read_csv(here("data", "crdc.csv"))  
+=======
+cr<-read_csv(here("data","crdc.csv"))  
+>>>>>>> 0765c19c1e43f42268f4c2692c0cd13573d209bf
 ```
 
 
@@ -123,7 +136,10 @@ Let's use that exact same logic, but this time use a continuous indepnednent var
 ```{r}
 cr%>%
   mutate(frl_q=ntile(stu_per_frl,n=4))%>%
+<<<<<<< HEAD
   mutate(high_frl=ifelse(stu_per_frl>.8,1,0))%>%
+=======
+>>>>>>> 0765c19c1e43f42268f4c2692c0cd13573d209bf
   group_by(frl_q)%>%
   summarize(avg_iss=mean(iss,na.rm=TRUE))%>%
   arrange(-avg_iss)
@@ -184,9 +200,13 @@ cr%>%
   geom_col()+
   coord_flip()+
     theme(legend.position = "none")+
+<<<<<<< HEAD
   xlab("")+ylab("LEA-Level ISS")
 
 
+=======
+  xlab("")+ylab("School-Level ISS")
+>>>>>>> 0765c19c1e43f42268f4c2692c0cd13573d209bf
 ```
 
 The code takes the school discipline data, calculates the average number of in-school suspensions for each state, and then creates a horizontal bar chart. Each bar represents a state, and the length of the bar indicates the average number of suspensions. The states are ordered in the chart based on these averages. The bars are colored by state, but there's no legend since the state names are already labeled on the chart.
@@ -410,9 +430,13 @@ cr_rec%>%
 
 cr_rec%>%
   prep()%>%
+<<<<<<< HEAD
    bake(train)%>%
   View()
 
+=======
+   bake(train)
+>>>>>>> 0765c19c1e43f42268f4c2692c0cd13573d209bf
 ```
 
 
@@ -515,7 +539,10 @@ cr_wf_full<-
 cr_wf_full%>%
   extract_fit_parsnip()%>%
   tidy()%>%
+<<<<<<< HEAD
   arrange(-abs(estimate))%>%
+=======
+>>>>>>> 0765c19c1e43f42268f4c2692c0cd13573d209bf
   arrange(-estimate)%>%
   print(n=100)
 ```

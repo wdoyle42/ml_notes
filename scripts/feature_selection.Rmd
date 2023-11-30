@@ -5,6 +5,10 @@ author: "Will Doyle"
 
 ## Introduction
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 0765c19c1e43f42268f4c2692c0cd13573d209bf
 ```{r}
 library(tidyverse)
 library(tidymodels)
