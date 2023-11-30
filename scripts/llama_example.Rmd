@@ -1,0 +1,41 @@
+---
+title: "TensorFlow/LLAMA Example"
+author: "Will Doyle"
+date: "2023-09-14"
+output: html_document
+---
+
+```{r}
+# remotes::install_github(c("rstudio/reticulate",
+#                           "rstudio/tensorflow",
+#                           "rstudio/keras"))
+
+reticulate::install_python("3.10:latest")                          
+reticulate::virtualenv_create("./.venv",version = "3.10.13")
+tensorflow::install_tensorflow(envname = "./.venv", version="release")
+
+tensorflow::install_tensorflow(extra_packages = "tensorflow-text")
+                             
+```
+
+```{r}
+library(purrr)
+library(envir)
+library(tensorflow)
+library(tfautograph)
+library(keras)
+
+use_virtualenv("./.venv")
+options(tensorflow.extract.warn_tensors_passed_asis = FALSE)
+
+attach_eval({
+  import_from(glue, glue)
+  import_from(jsonlite, read_json)
+  import_from(withr, with_dir, with_options)
+  import_from(keras$layers, Dense)
+  np <- reticulate::import("numpy", convert = FALSE)
+
+  seq_len0 <- function(x) seq.int(from = 0L, length.out = x)
+})
+```
+
