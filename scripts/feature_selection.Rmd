@@ -5,10 +5,8 @@ author: "Will Doyle"
 
 ## Introduction
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 0765c19c1e43f42268f4c2692c0cd13573d209bf
+
 ```{r}
 library(tidyverse)
 library(tidymodels)
@@ -41,7 +39,7 @@ cr<-cr %>%
 ```
 ## Training and Testing
 
-We'll split the data into training and testing, using the default 75/25 split. 
+We'll split the data into training and testing, using the default 75/25 split. Try this
 
 ```{r}
 split_data<-initial_split(cr)
